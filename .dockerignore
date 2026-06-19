@@ -1,0 +1,23 @@
+# Ignorar carpetas de compilación local (evita conflictos de arquitectura)
+**/bin/
+**/obj/
+
+# Ignorar configuraciones de editores e IDEs
+.vs/
+.vscode/
+*.user
+*.suo
+*.sln.doccache
+
+# Ignorar secretos y configuraciones locales
+**/appsettings.Development.json
+**/appsettings.Local.json
+**.secrets.json
+
+# Ignorar control de versiones y documentación innecesaria en el contenedor
+.git/
+.github/
+.gitignore
+.dockerignore
+README.md
+LICENSE
