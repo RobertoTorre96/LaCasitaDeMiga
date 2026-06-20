@@ -8,22 +8,17 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- CONFIGURACIÓN DE BASE DE DATOS (NUEVA LOGICA NEON) ---
+// --- CONFIGURACIÓN DE BASE DE DATOS ---
+// Lee automáticamente de appsettings.json en local y de las Variables de Entorno en Render
 var connectionString = builder.Configuration.GetConnectionString("PostgresConnection");
-
-// Declaramos y leemos la URL nativa de Neon desde las variables de entorno de Render
-var envUrl = Environment.GetEnvironmentVariable("NEON_DATABASE_URL");
-if (!string.IsNullOrEmpty(envUrl))
-{
-    connectionString = envUrl;
-}
 
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
-// ---------------------------------------------------------------
+// --------------------------------------
 
 // Add services to the container.
 builder.Services.AddAutoMapper(typeof(Program));
+
 builder.Services.AddScoped<IBrandService, BrandServiceImpl>();
 builder.Services.AddScoped<ICategoryService, CategoryServiceImpl>();
 builder.Services.AddScoped<IOrderService, OrderServiceImpl>();
@@ -32,6 +27,7 @@ builder.Services.AddScoped<IProductService, ProductServiceImpl>();
 // Exceptions
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddProblemDetails();
+
 builder.Services.AddControllers();
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
@@ -50,7 +46,9 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
 app.UseAuthorization();
+
 app.MapControllers();
 
 app.Run();
