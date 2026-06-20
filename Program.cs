@@ -30,6 +30,12 @@ builder.Services.AddProblemDetails();
 
 builder.Services.AddControllers();
 
+// --- CONFIGURACIÓN DEL PUERTO PARA RAILWAY ---
+// Si existe la variable PORT (Railway), la usa; si no, usa el 8080 por defecto en producción.
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+builder.WebHost.UseUrls($"http://*:{port}");
+
+
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
