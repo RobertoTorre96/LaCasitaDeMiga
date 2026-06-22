@@ -13,6 +13,21 @@ using System.Text; // <-- AGREGADO
 
 var builder = WebApplication.CreateBuilder(args);
 
+
+// 1. REGISTRAR EL SERVICIO DE CORS (Antes del builder.Build())
+builder.Services.AddCors(options => {
+    options.AddPolicy("PermitirLaCasitaDeMiga", policy => {
+        policy.WithOrigins(
+                "https://www.lacasitademiga.com.ar", // 👈 Tu frontend real en producción
+                "http://localhost:3000",             // 👈 Por si llegás a levantar el código del front local en React
+                "http://localhost:4200"              // 👈 Por si usás Angular local
+              )
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+
 // --- CONFIGURACIÓN DE BASE DE DATOS ---
 var connectionString = builder.Configuration.GetConnectionString("PostgresConnection");
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
@@ -90,6 +105,7 @@ builder.Services.AddSwaggerGen(c => {
 
 var app = builder.Build();
 app.UseExceptionHandler();
+app.UseCors("PermitirLaCasitaDeMiga");
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment()) {
