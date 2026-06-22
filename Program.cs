@@ -104,6 +104,11 @@ builder.Services.AddSwaggerGen(c => {
 // -----------------------------------------------------
 
 var app = builder.Build();
+
+
+
+
+
 app.UseExceptionHandler();
 app.UseCors("PermitirLaCasitaDeMiga");
 
@@ -120,5 +125,19 @@ app.UseAuthentication(); // 1. ¿Quién sos? (Lee el token) <-- AGREGADO
 app.UseAuthorization();  // 2. ¿Tenés permiso? (Lee el rol)
 
 app.MapControllers();
+
+
+// --- APLICAR MIGRACIONES AUTOMÁTICAS AL ARRANCAR ---
+using (var scope = app.Services.CreateScope()) {
+    var services = scope.ServiceProvider;
+    try {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        // Esto revisa tu código, mira la DB de producción y aplica lo que falte
+        context.Database.Migrate();
+        Console.WriteLine("¡Migraciones aplicadas con éxito en producción!");
+    } catch (Exception ex) {
+        Console.WriteLine($"Error al aplicar migraciones: {ex.Message}");
+    }
+}
 
 app.Run();
