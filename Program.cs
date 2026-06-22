@@ -18,9 +18,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCors(options => {
     options.AddPolicy("PermitirLaCasitaDeMiga", policy => {
         policy.WithOrigins(
-                "https://www.lacasitademiga.com.ar", // 👈 Tu frontend real en producción
+                "https://www.lacasitademiga.com.ar",
+                "https://lacasitademiga.com.ar",// 👈 Tu frontend real en producción
                 "http://localhost:3000",             // 👈 Por si llegás a levantar el código del front local en React
-                "http://localhost:4200"              // 👈 Por si usás Angular local
+                "http://localhost:4200",              // 👈 Por si usás Angular local
+                "http://localhost:5173"
               )
               .AllowAnyHeader()
               .AllowAnyMethod();
