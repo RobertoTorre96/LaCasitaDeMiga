@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ECommersAPI.Features.Orders.DTOs {
+namespace LaCasitaDeMiga.Features.Orders.DTOs {
     public class OrderRequestDto {
         [Required(ErrorMessage = "El ID del cliente es obligatorio.")]
         public Guid CustomerId { get; set; }

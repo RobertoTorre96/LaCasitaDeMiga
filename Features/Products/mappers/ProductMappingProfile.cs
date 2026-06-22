@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
-using ECommersAPI.Features.Products.DTOs;
+using LaCasitaDeMiga.Features.Products.DTOs;
 
-namespace ECommersAPI.Features.Products.mappers {
+namespace LaCasitaDeMiga.Features.Products.mappers {
     public class ProductMappingProfile : Profile  {
         public Guid Id { get; private set; }
 

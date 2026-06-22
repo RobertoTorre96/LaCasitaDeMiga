@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ECommersAPI.Features.Products.DTOs {
+namespace LaCasitaDeMiga.Features.Products.DTOs {
     public class ProductRequestDto {
         [Required(ErrorMessage = "El nombre del producto es obligatorio.")]
         [StringLength(150, ErrorMessage = "El nombre no puede superar los 150 caracteres.")]

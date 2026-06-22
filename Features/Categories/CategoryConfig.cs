@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore.Metadata;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace ECommersAPI.Features.Categories {
+namespace LaCasitaDeMiga.Features.Categories {
     public class CategoryConfig : IEntityTypeConfiguration<CategoryEntity> {
         public void Configure(EntityTypeBuilder<CategoryEntity> builder) {
             builder.ToTable("categories");

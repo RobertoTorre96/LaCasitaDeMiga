@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ECommersAPI.Features.Categories.DTOs {
+namespace LaCasitaDeMiga.Features.Categories.DTOs {
     public class CategoryRequestDto {
         [Required(ErrorMessage = "El nombre de la categoría es obligatorio.")]
         [StringLength(100, ErrorMessage = "El nombre no puede superar los {1} caracteres.")]

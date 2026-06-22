@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ECommersAPI.Features.Brands.DTOs {
+namespace LaCasitaDeMiga.Features.Brands.DTOs {
     public class BrandRequestDto {
 
         [Required(ErrorMessage = "El nombre de la marca es obligatorio.")]

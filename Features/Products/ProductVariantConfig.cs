@@ -2,7 +2,7 @@
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using System.Text.Json;
 
-namespace ECommersAPI.Features.Products {
+namespace LaCasitaDeMiga.Features.Products {
     public class ProductVariantConfig : IEntityTypeConfiguration<ProductVariantEntity> {
         public void Configure(EntityTypeBuilder<ProductVariantEntity> builder) {
 

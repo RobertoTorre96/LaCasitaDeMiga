@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ECommersAPI.Features.Products.DTOs {
+namespace LaCasitaDeMiga.Features.Products.DTOs {
     public class ProductVariantRequestDto {
         [Required(ErrorMessage = "El SKU es obligatorio.")]
         [StringLength(50, ErrorMessage = "El SKU no puede superar los {1} caracteres.")]

@@ -1,6 +1,6 @@
-﻿using ECommersAPI.Features.Products;
+﻿using LaCasitaDeMiga.Features.Products;
 
-namespace ECommersAPI.Features.Orders {
+namespace LaCasitaDeMiga.Features.Orders {
     public class OrderItemEntity {
         public Guid Id { get; set; } = Guid.NewGuid();
 

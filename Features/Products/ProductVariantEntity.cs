@@ -1,4 +1,4 @@
-﻿namespace ECommersAPI.Features.Products {
+﻿namespace LaCasitaDeMiga.Features.Products {
     public class ProductVariantEntity {
 
         public Guid Id { get; set; }

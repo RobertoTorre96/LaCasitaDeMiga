@@ -1,10 +1,10 @@
-﻿using ECommersAPI.Common.DTOs;
-using ECommersAPI.Features.Products.DTOs;
-using ECommersAPI.Features.Products.Services;
+﻿using LaCasitaDeMiga.Common.DTOs;
+using LaCasitaDeMiga.Features.Products.DTOs;
+using LaCasitaDeMiga.Features.Products.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ECommersAPI.Features.Products {
+namespace LaCasitaDeMiga.Features.Products {
     [ApiController]
     [Route("api/products")]
     public class ProductController : ControllerBase {

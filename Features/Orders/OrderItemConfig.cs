@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace ECommersAPI.Features.Orders {
+namespace LaCasitaDeMiga.Features.Orders {
     public class OrderItemConfig : IEntityTypeConfiguration <OrderItemEntity> {
 
         public void Configure(EntityTypeBuilder<OrderItemEntity> builder) {

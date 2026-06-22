@@ -1,7 +1,7 @@
 ﻿using AutoMapper;
-using ECommersAPI.Features.Brands.DTOs;
+using LaCasitaDeMiga.Features.Brands.DTOs;
 
-namespace ECommersAPI.Features.Brands.Mapper {
+namespace LaCasitaDeMiga.Features.Brands.Mapper {
     public class BrandMappingProfile :Profile {
         public BrandMappingProfile() {
             CreateMap<BrandEntity, BrandResponseDto>();

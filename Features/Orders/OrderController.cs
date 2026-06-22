@@ -1,8 +1,8 @@
-﻿using ECommersAPI.Features.Orders.DTOs;
-using ECommersAPI.Features.Orders.Services;
+﻿using LaCasitaDeMiga.Features.Orders.DTOs;
+using LaCasitaDeMiga.Features.Orders.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ECommersAPI.Features.Orders {
+namespace LaCasitaDeMiga.Features.Orders {
     [ApiController]
     [Route("api/[controller]")]
     public class OrderController : ControllerBase {

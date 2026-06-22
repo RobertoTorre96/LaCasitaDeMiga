@@ -1,8 +1,8 @@
-﻿using ECommersAPI.Features.Brands.DTOs;
-using ECommersAPI.Features.Brands.Services;
+﻿using LaCasitaDeMiga.Features.Brands.DTOs;
+using LaCasitaDeMiga.Features.Brands.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ECommersAPI.Features.Brands {
+namespace LaCasitaDeMiga.Features.Brands {
     [ApiController]
     [Route("api/Brands")]
     public class BrandController :ControllerBase{

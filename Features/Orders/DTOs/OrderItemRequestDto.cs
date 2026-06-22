@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace ECommersAPI.Features.Orders.DTOs {
+namespace LaCasitaDeMiga.Features.Orders.DTOs {
     public class OrderItemRequestDto {
         [Required(ErrorMessage = "El ID de la variante es obligatorio.")]
         public Guid ProductVariantId { get; set; }

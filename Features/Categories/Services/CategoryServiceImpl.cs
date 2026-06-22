@@ -1,9 +1,9 @@
-﻿using ECommerceAPI.Data;
-using ECommersAPI.Exceptions;
-using ECommersAPI.Features.Categories.DTOs;
+﻿using LaCasitaDeMiga.Exceptions;
+using LaCasitaDeMiga.Features.Categories.DTOs;
+using LaCasitaDeMiga.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace ECommersAPI.Features.Categories.Services {
+namespace LaCasitaDeMiga.Features.Categories.Services {
     public class CategoryServiceImpl : ICategoryService {
 
         private readonly ApplicationDbContext _context;

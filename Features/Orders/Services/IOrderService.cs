@@ -1,6 +1,6 @@
-﻿using ECommersAPI.Features.Orders.DTOs;
+﻿using LaCasitaDeMiga.Features.Orders.DTOs;
 
-namespace ECommersAPI.Features.Orders.Services {
+namespace LaCasitaDeMiga.Features.Orders.Services {
     public interface IOrderService {
         Task<OrderResponseDto> CreateOrderAsync(OrderRequestDto request);
 

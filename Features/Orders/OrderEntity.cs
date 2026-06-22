@@ -1,10 +1,14 @@
-﻿namespace ECommersAPI.Features.Orders {
+﻿using LaCasitaDeMiga.Features.Users; // Asegúrate de importar el namespace donde está tu UserEntity
+
+namespace LaCasitaDeMiga.Features.Orders {
     public class OrderEntity {
         public Guid Id { get; set; } = Guid.NewGuid();
 
-        // Por ahora lo dejamos como Guid plano. Cuando tengamos el módulo 
-        // de Usuarios, acá habrá una relación física a la tabla de Users.
+        // 1. Esta sigue siendo la clave foránea en la base de datos
         public Guid CustomerId { get; set; }
+
+        // 2. PROPIEDAD DE NAVEGACIÓN: La relación física al objeto Usuario
+        public UserEntity Customer { get; set; } = null!;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

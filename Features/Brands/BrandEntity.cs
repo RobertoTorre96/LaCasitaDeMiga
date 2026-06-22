@@ -1,4 +1,4 @@
-﻿namespace ECommersAPI.Features.Brands {
+﻿namespace LaCasitaDeMiga.Features.Brands {
     public class BrandEntity {
 
         public Guid Id { get; set; }

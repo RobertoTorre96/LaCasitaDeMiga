@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace ECommersAPI.Migrations
+namespace LaCasitaDeMiga.Migrations
 {
     /// <inheritdoc />
     public partial class SoloTablasDeOrdenes : Migration

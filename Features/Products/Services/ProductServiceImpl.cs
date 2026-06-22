@@ -1,12 +1,12 @@
 ﻿using AutoMapper;
-using ECommerceAPI.Data;
-using ECommersAPI.Common.DTOs;
-using ECommersAPI.Exceptions;
-using ECommersAPI.Features.Products.DTOs;
+using LaCasitaDeMiga.Common.DTOs;
+using LaCasitaDeMiga.Exceptions;
+using LaCasitaDeMiga.Features.Products.DTOs;
+using LaCasitaDeMiga.Data;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 
-namespace ECommersAPI.Features.Products.Services {
+namespace LaCasitaDeMiga.Features.Products.Services {
     public class ProductServiceImpl : IProductService {
 
         private readonly ApplicationDbContext _context;

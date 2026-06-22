@@ -1,7 +1,7 @@
-﻿using ECommersAPI.Common.DTOs;
-using ECommersAPI.Features.Products.DTOs;
+﻿using LaCasitaDeMiga.Common.DTOs;
+using LaCasitaDeMiga.Features.Products.DTOs;
 
-namespace ECommersAPI.Features.Products.Services {
+namespace LaCasitaDeMiga.Features.Products.Services {
     public interface IProductService {
         Task<PagedResultDto<ProductResponseDto>> GetAllAsync(
             Guid? categoryId = null,

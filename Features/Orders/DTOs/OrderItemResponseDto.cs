@@ -1,4 +1,4 @@
-﻿namespace ECommersAPI.Features.Orders.DTOs {
+﻿namespace LaCasitaDeMiga.Features.Orders.DTOs {
     public class OrderItemResponseDto {
 
         public Guid Id { get; set; }

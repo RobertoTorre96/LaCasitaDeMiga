@@ -1,6 +1,6 @@
-﻿using ECommersAPI.Features.Categories.DTOs;
+﻿using LaCasitaDeMiga.Features.Categories.DTOs;
 
-namespace ECommersAPI.Features.Categories.Services {
+namespace LaCasitaDeMiga.Features.Categories.Services {
     public interface ICategoryService {
         Task<IEnumerable<CategoryResponseDto>> GetAllAsync();
 

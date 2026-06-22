@@ -1,7 +1,7 @@
-﻿using ECommersAPI.Features.Brands;
-using ECommersAPI.Features.Categories;
+﻿using LaCasitaDeMiga.Features.Brands;
+using LaCasitaDeMiga.Features.Categories;
 
-namespace ECommersAPI.Features.Products {
+namespace LaCasitaDeMiga.Features.Products {
     public class ProductEntity {
 
         public Guid Id { get; set; }

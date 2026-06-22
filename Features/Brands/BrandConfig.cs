@@ -1,7 +1,7 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
-namespace ECommersAPI.Features.Brands {
+namespace LaCasitaDeMiga.Features.Brands {
     public class BrandConfig : IEntityTypeConfiguration<BrandEntity> {
         public void Configure(EntityTypeBuilder<BrandEntity> builder) {
             

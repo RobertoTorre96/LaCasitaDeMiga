@@ -1,4 +1,4 @@
-﻿namespace ECommersAPI.Features.Categories {
+﻿namespace LaCasitaDeMiga.Features.Categories {
     public class CategoryEntity    {
 
         public Guid Id { get; set; }

@@ -1,8 +1,8 @@
-﻿using ECommersAPI.Features.Categories.DTOs;
-using ECommersAPI.Features.Categories.Services;
+﻿using LaCasitaDeMiga.Features.Categories.DTOs;
+using LaCasitaDeMiga.Features.Categories.Services;
 using Microsoft.AspNetCore.Mvc;
 
-namespace ECommersAPI.Features.Categories {
+namespace LaCasitaDeMiga.Features.Categories {
 
     [ApiController]
     [Route("api/categories")]

@@ -1,6 +1,6 @@
-﻿using ECommersAPI.Features.Brands.DTOs;
+﻿using LaCasitaDeMiga.Features.Brands.DTOs;
 
-namespace ECommersAPI.Features.Brands.Services {
+namespace LaCasitaDeMiga.Features.Brands.Services {
     public interface IBrandService {
         Task<BrandResponseDto> CreateAsync(BrandRequestDto request);
         Task<IEnumerable<BrandResponseDto>> GetAllAsync();

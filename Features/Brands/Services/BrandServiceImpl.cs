@@ -1,10 +1,10 @@
 ﻿using AutoMapper;
-using ECommerceAPI.Data;
-using ECommersAPI.Exceptions;
-using ECommersAPI.Features.Brands.DTOs;
+using LaCasitaDeMiga.Exceptions;
+using LaCasitaDeMiga.Features.Brands.DTOs;
+using LaCasitaDeMiga.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace ECommersAPI.Features.Brands.Services {
+namespace LaCasitaDeMiga.Features.Brands.Services {
     public class BrandServiceImpl :IBrandService {
 
         private readonly ApplicationDbContext _context;
