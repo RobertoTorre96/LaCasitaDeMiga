@@ -5,6 +5,7 @@ using LaCasitaDeMiga.Features.Orders.Services;
 using LaCasitaDeMiga.Features.Products.Services;
 using LaCasitaDeMiga.Data;
 using Microsoft.EntityFrameworkCore;
+using LaCasitaDeMiga.Features.Users.services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -36,6 +37,7 @@ builder.Services.AddScoped<IBrandService, BrandServiceImpl>();
 builder.Services.AddScoped<ICategoryService, CategoryServiceImpl>();
 builder.Services.AddScoped<IOrderService, OrderServiceImpl>();
 builder.Services.AddScoped<IProductService, ProductServiceImpl>();
+builder.Services.AddScoped<IUserService, UserServiceImpl>();
 
 // Exceptions
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
