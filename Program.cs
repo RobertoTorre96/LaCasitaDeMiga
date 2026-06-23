@@ -15,6 +15,19 @@ var connectionString = builder.Configuration.GetConnectionString("PostgresConnec
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 // --------------------------------------
+// --- 1. CONFIGURACIÓN DE CORS (NUEVO) ---
+// --- CONFIGURACIÓN DE CORS RESTRINGIDA A TU FRONTEND ---
+builder.Services.AddCors(options => {
+    options.AddPolicy("AllowAll", policy => {
+        policy.WithOrigins(
+            "https://www.lacasitademiga.com.ar"
+            , "https://lacasitademiga.com.ar",
+            "http://localhost:5173")
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
+
 
 // Add services to the container.
 builder.Services.AddAutoMapper(typeof(Program));
@@ -52,6 +65,8 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+
+app.UseCors("AllowAll");
 
 app.UseAuthorization();
 
