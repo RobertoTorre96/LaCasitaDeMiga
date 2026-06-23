@@ -10,7 +10,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             int pageNumber = 1,
             int pageSize = 10);
 
-        Task<ProductResponseDto> CreateAsync(ProductRequestDto request);
+        Task<ProductResponseDto> CreateAsync(ProducCreatetRequestDto request);
         Task<ProductResponseDto?> GetByIdAsync(Guid id);
         Task<ProductResponseDto?> GetBySlugAsync(string slug);
         Task<ProductResponseDto?> UpdateAsync(Guid id, ProductUpdateDto request);

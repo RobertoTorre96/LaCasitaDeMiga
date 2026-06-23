@@ -1,7 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
 namespace LaCasitaDeMiga.Features.Products.DTOs {
-    public class ProductRequestDto {
+    public class ProducCreatetRequestDto {
         [Required(ErrorMessage = "El nombre del producto es obligatorio.")]
         [StringLength(150, ErrorMessage = "El nombre no puede superar los 150 caracteres.")]
         public string Name { get; set; } = null!;

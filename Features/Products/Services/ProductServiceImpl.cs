@@ -18,7 +18,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
         }
 
         // 1. CREAR PRODUCTO (Con generación de SKU automática)
-        public async Task<ProductResponseDto> CreateAsync(ProductRequestDto request) {
+        public async Task<ProductResponseDto> CreateAsync(ProducCreatetRequestDto request) {
             var product = _mapper.Map<ProductEntity>(request);
 
             // Generamos el Slug único basado en el nombre

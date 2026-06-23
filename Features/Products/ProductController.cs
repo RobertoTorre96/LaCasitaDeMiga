@@ -50,7 +50,7 @@ namespace LaCasitaDeMiga.Features.Products {
         // 4. CREAR PRODUCTO Y VARIANTES
         // POST: api/products
         [HttpPost]
-        public async Task<ActionResult<ProductResponseDto>> Create([FromBody] ProductRequestDto request) {
+        public async Task<ActionResult<ProductResponseDto>> Create([FromBody] ProducCreatetRequestDto request) {
             // .NET valida automáticamente las anotaciones como [Required] y [MinLength] 
             // gracias al atributo [ApiController] de la clase.
             var createdProduct = await _productService.CreateAsync(request);

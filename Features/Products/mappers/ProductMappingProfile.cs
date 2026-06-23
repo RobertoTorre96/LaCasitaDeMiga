@@ -11,7 +11,7 @@ namespace LaCasitaDeMiga.Features.Products.mappers {
             // =========================================================
 
             // De ProductoRequest a Entidad Padre
-            CreateMap<ProductRequestDto, ProductEntity>()
+            CreateMap<ProducCreatetRequestDto, ProductEntity>()
                 .ForMember(dest => dest.Id, opt => opt.Ignore()) // El ID lo genera la BD o el servicio (UUID)
                 .ForMember(dest => dest.Slug, opt => opt.Ignore()) // El Slug lo calculamos en el servicio
                 .ForMember(dest => dest.IsActive, opt => opt.Ignore()) // Se maneja por lógica de negocio (true por defecto)
