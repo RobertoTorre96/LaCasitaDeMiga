@@ -13,6 +13,11 @@ namespace LaCasitaDeMiga.Features.Orders {
             builder.Property(i => i.UnitPrice)
                 .HasColumnType("decimal(18,2)")
                 .IsRequired();
+            // --- NUEVO MAPEO PARA EL COSTO HISTÓRICO ---
+            builder.Property(i => i.UnitCost)
+                .HasColumnType("decimal(18,2)")
+                .HasDefaultValue(0.00m)
+                .IsRequired();
 
             builder.HasOne(i => i.ProductVariant)
                 .WithMany()

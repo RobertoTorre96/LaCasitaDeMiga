@@ -25,5 +25,7 @@
 
         // Propiedad de navegación (Relación inversa hacia el padre)
         public ProductEntity Product { get; set; } = null!;
+
+      
     }
 }
