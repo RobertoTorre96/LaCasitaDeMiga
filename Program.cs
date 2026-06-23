@@ -28,6 +28,11 @@ builder.Services.AddCors(options => {
               .AllowAnyMethod()
               .AllowAnyHeader();
     });
+    options.AddPolicy("DevelopmentCors", policy => {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
 });
 
 
@@ -70,7 +75,14 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseCors("AllowAll");
+// --- SELECCIÓN DINÁMICA DE CORS SEGÚN EL ENTORNO ---
+if (app.Environment.IsDevelopment()) {
+    // Habilita el acceso total para Swagger y herramientas locales
+    app.UseCors("DevelopmentCors");
+} else {
+    // Mantiene las restricciones seguras en producción (Railway/Render)
+    app.UseCors("AllowAll");
+}
 
 app.UseAuthorization();
 
