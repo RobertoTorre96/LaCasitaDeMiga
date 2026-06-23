@@ -61,7 +61,6 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
                         UnitPrice = variant.Price,      // Congelamos el precio de venta cobrado al público
                         UnitCost = variant.AverageCost   // ◄ ¡CLAVE FINANCIERA! Congelamos el costo promedio ponderado actual
                     };
-
                     totalAccumulated += orderItem.Quantity * orderItem.UnitPrice;
                     order.Items.Add(orderItem);
                 }

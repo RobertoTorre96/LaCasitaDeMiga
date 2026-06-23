@@ -77,7 +77,7 @@ namespace LaCasitaDeMiga.Features.Products {
 
         // 7. ACTUALIZAR STOCK DE UNA VARIANTE
         // POST: api/products/variants/3fa85f64-5717-4562-b3fc-2c963f66afa6/stock
-        [HttpPost("variants/{variantId:guid}/stock")]
+        [HttpPut("variants/{variantId:guid}/stock")] // ◄ CAMBIADO
         public async Task<IActionResult> UpdateStock(Guid variantId, [FromBody] int quantity) {
             var success = await _productService.UpdateStockAsync(variantId, quantity);
 
@@ -91,7 +91,7 @@ namespace LaCasitaDeMiga.Features.Products {
 
         // 8. NUEVO: REGISTRAR INGRESO DE STOCK PROVEEDOR (Calcular Costo Promedio)
         // POST: api/products/variants/3fa85f64-5717-4562-b3fc-2c963f66afa6/stock-entry
-        [HttpPost("variants/{variantId:guid}/stock-entry")]
+        [HttpPut("variants/{variantId:guid}/stock-entry")] 
         public async Task<IActionResult> RegisterStockEntry(Guid variantId, [FromBody] StockEntryRequestDto request) {
             var success = await _productService.RegisterStockEntryAsync(
                 variantId,

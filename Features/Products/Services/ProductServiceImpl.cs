@@ -201,6 +201,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             variant.Stock += quantity;
             return await _context.SaveChangesAsync() > 0;
         }
+        // 8. ACTUALIZAR VARIANTE (Precio, Atributos, Stock, etc.)
         public async Task<ProductVariantResponseDto> UpdateVariantAsync(Guid variantId, UpdateProductVariantRequestDto dto) {
             // Buscamos la variante incluyendo a su producto padre (para poder armar el SKU si cambia algo)
             var variant = await _context.ProductVariants
@@ -233,11 +234,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             return _mapper.Map<ProductVariantResponseDto>(variant);
         }
 
-
-
-
-
-        // 8. ELIMINAR
+        // 9. ELIMINAR
         public async Task<bool> DeleteAsync(Guid id) {
             var product = await _context.Products
                 .Include(p => p.Variants)
