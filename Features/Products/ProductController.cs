@@ -62,7 +62,7 @@ namespace LaCasitaDeMiga.Features.Products {
         // 5. ACTUALIZAR PRODUCTO (Padre e hijos)
         // PUT: api/products/3fa85f64-5717-4562-b3fc-2c963f66afa6
         [HttpPut("{id:guid}")]
-        public async Task<ActionResult<ProductResponseDto>> Update(Guid id, [FromBody] ProductRequestDto request) {
+        public async Task<ActionResult<ProductResponseDto>> Update(Guid id, [FromBody] ProductUpdateDto request) {
             var updatedProduct = await _productService.UpdateAsync(id, request);
             return Ok(updatedProduct);
         }
@@ -106,17 +106,13 @@ namespace LaCasitaDeMiga.Features.Products {
             return Ok(new { message = "Ingreso de stock registrado y costo promedio recalculado con éxito." });
         }
 
-        // 9. ACTUALIZAR PRECIOS DE VENTA DE UNA VARIANTE (Cambio de cartelera)
-        // PUT: api/products/variants/3fa85f64-5717-4562-b3fc-2c963f66afa6/prices
-        [HttpPut("variants/{variantId:guid}/prices")]
-        public async Task<IActionResult> UpdatePrices(Guid variantId, [FromBody] UpdatePricesRequestDto request) {
-            var success = await _productService.UpdatePricesAsync(variantId, request);
+        [HttpPut("variants/{variantId}")]
+        public async Task<ActionResult<ProductVariantResponseDto>> UpdateVariant(
+            Guid variantId,
+            [FromBody] UpdateProductVariantRequestDto dto) {
 
-            if (!success) {
-                return BadRequest(new { message = "No se pudieron actualizar los precios en la base de datos." });
-            }
-
-            return Ok(new { message = "Precios de venta actualizados correctamente." });
+            var updatedVariant = await _productService.UpdateVariantAsync(variantId, dto);
+            return Ok(updatedVariant);
         }
     }
 }

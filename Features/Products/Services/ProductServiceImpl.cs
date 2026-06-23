@@ -153,14 +153,13 @@ namespace LaCasitaDeMiga.Features.Products.Services {
         }
 
         // 6. ACTUALIZAR DETALLES
-        // 6. ACTUALIZAR DETALLES (Corregido para proteger SKUs, Costos y Stocks)
-        public async Task<ProductResponseDto?> UpdateAsync(Guid id, ProductRequestDto request) {
+        public async Task<ProductResponseDto?> UpdateAsync(Guid id, ProductUpdateDto request) {
+
             var product = await _context.Products
-                .Include(p => p.Variants)
-                .FirstOrDefaultAsync(p => p.Id == id);
+            .Include(p => p.Variants)
+            .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null) throw new NotFoundException($"El Producto con Id: '{id}' no se ha encontrado.");
-
             // 1. Actualizamos los datos básicos del padre manualmente para no romper la colección de variantes
             product.Name = request.Name;
             product.Description = request.Description;
@@ -168,22 +167,24 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             product.BrandId = request.BrandId;
             product.UpdatedAt = DateTime.UtcNow;
             product.Slug = GenerateSlug(request.Name);
-
             // Opcional si querés recalcular los SKUs de los hijos porque cambió el nombre/slug del padre:
             int variantIndex = 1;
+
             foreach (var variant in product.Variants) {
+
                 var firstAttributeValue = variant.Attributes.Values.FirstOrDefault()?.ToString() ?? "";
                 string attributePart = !string.IsNullOrEmpty(firstAttributeValue)
-                    ? $"-{GenerateSlug(firstAttributeValue)}"
-                    : $"-v{variantIndex}";
+                ? $"-{GenerateSlug(firstAttributeValue)}"
+                : $"-v{variantIndex}";
 
                 // Regeneramos el SKU basado en el nuevo nombre sin tocar sus costos o stocks reales
                 variant.Sku = $"{product.Slug}{attributePart}".ToUpper();
                 variantIndex++;
-            }
 
+            }
             await _context.SaveChangesAsync();
             return await GetByIdAsync(id);
+
         }
 
         // 7. ACTUALIZAR STOCK MANUAL (Se mantiene para ajustes/ventas de caja)
@@ -200,21 +201,40 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             variant.Stock += quantity;
             return await _context.SaveChangesAsync() > 0;
         }
+        public async Task<ProductVariantResponseDto> UpdateVariantAsync(Guid variantId, UpdateProductVariantRequestDto dto) {
+            // Buscamos la variante incluyendo a su producto padre (para poder armar el SKU si cambia algo)
+            var variant = await _context.ProductVariants
+                .Include(v => v.Product)
+                .FirstOrDefaultAsync(v => v.Id == variantId);
 
-        public async Task<bool> UpdatePricesAsync(Guid variantId, UpdatePricesRequestDto dto) {
-            if (dto.Price <= 0) {
-                throw new BadRequestException("El precio de venta debe ser mayor a 0.");
+            if (variant == null) {
+                throw new NotFoundException($"La variante con ID: '{variantId}' no fue encontrada.");
             }
 
-            var variant = await _context.ProductVariants.FindAsync(variantId);
-            if (variant == null) throw new NotFoundException($"La variante con ID: '{variantId}' no fue encontrada.");
-
-            // Actualizamos los precios de venta
+            // 1. Actualizamos los campos permitidos
             variant.Price = dto.Price;
             variant.CompareAtPrice = dto.CompareAtPrice;
+            variant.LowStockThreshold = dto.LowStockThreshold;
+            variant.Attributes = dto.Attributes;
+            variant.IsActive = dto.IsActive;
 
-            return await _context.SaveChangesAsync() > 0;
+            // 2. Regeneramos su SKU automáticamente en base a sus nuevos atributos
+            var firstAttributeValue = variant.Attributes.Values.FirstOrDefault()?.ToString() ?? "";
+            string attributePart = !string.IsNullOrEmpty(firstAttributeValue)
+                ? $"-{GenerateSlug(firstAttributeValue)}"
+                : $"-v1";
+
+            variant.Sku = $"{variant.Product.Slug}{attributePart}".ToUpper();
+
+            // 3. Guardamos en la Base de Datos
+            await _context.SaveChangesAsync();
+
+            // Retornamos la variante mapeada a su DTO de respuesta
+            return _mapper.Map<ProductVariantResponseDto>(variant);
         }
+
+
+
 
 
         // 8. ELIMINAR
