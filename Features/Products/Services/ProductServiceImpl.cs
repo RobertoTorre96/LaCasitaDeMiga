@@ -153,16 +153,34 @@ namespace LaCasitaDeMiga.Features.Products.Services {
         }
 
         // 6. ACTUALIZAR DETALLES
+        // 6. ACTUALIZAR DETALLES (Corregido para proteger SKUs, Costos y Stocks)
         public async Task<ProductResponseDto?> UpdateAsync(Guid id, ProductRequestDto request) {
             var product = await _context.Products
                 .Include(p => p.Variants)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null) throw new NotFoundException($"El Producto con Id: '{id}' no se ha encontrado.");
-            _mapper.Map(request, product);
 
+            // 1. Actualizamos los datos básicos del padre manualmente para no romper la colección de variantes
+            product.Name = request.Name;
+            product.Description = request.Description;
+            product.CategoryId = request.CategoryId;
+            product.BrandId = request.BrandId;
             product.UpdatedAt = DateTime.UtcNow;
             product.Slug = GenerateSlug(request.Name);
+
+            // Opcional si querés recalcular los SKUs de los hijos porque cambió el nombre/slug del padre:
+            int variantIndex = 1;
+            foreach (var variant in product.Variants) {
+                var firstAttributeValue = variant.Attributes.Values.FirstOrDefault()?.ToString() ?? "";
+                string attributePart = !string.IsNullOrEmpty(firstAttributeValue)
+                    ? $"-{GenerateSlug(firstAttributeValue)}"
+                    : $"-v{variantIndex}";
+
+                // Regeneramos el SKU basado en el nuevo nombre sin tocar sus costos o stocks reales
+                variant.Sku = $"{product.Slug}{attributePart}".ToUpper();
+                variantIndex++;
+            }
 
             await _context.SaveChangesAsync();
             return await GetByIdAsync(id);
