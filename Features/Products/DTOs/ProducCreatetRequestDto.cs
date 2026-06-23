@@ -18,5 +18,6 @@ namespace LaCasitaDeMiga.Features.Products.DTOs {
         // Lista de variantes obligatoria: un producto genérico debe nacer con al menos una variante (ej: la variante estándar)
         [Required(ErrorMessage = "El producto debe tener al menos una variante.")]
         public ICollection<ProductVariantRequestDto> Variants { get; set; } = new List<ProductVariantRequestDto>();
+
     }
 }
