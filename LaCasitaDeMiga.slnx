@@ -1,4 +1,3 @@
 <Solution>
   <Project Path="LaCasitaDeMiga.csproj" />
-  <Project Path="LaCasitaDeMiga.Tests/LaCasitaDeMiga.Tests.csproj" />
 </Solution>
