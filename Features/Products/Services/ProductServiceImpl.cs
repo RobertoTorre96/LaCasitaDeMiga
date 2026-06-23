@@ -16,27 +16,79 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             _context = context;
             _mapper = mapper;
         }
+
+        // 1. CREAR PRODUCTO (Con generación de SKU automática)
         public async Task<ProductResponseDto> CreateAsync(ProductRequestDto request) {
             var product = _mapper.Map<ProductEntity>(request);
 
-            // 2. Generamos el Slug único basado en el nombre
+            // Generamos el Slug único basado en el nombre
             product.Slug = GenerateSlug(request.Name);
 
-            // 3. Validar si el slug ya existe (opcional pero recomendado)
             if (await _context.Products.AnyAsync(p => p.Slug == product.Slug)) {
                 product.Slug = $"{product.Slug}-{Guid.NewGuid().ToString().Substring(0, 5)}";
             }
 
-            // 4. Guardar en BD (El SaveChanges guardará padre e hijos de un tirón)
+            // --- LÓGICA AUTOMÁTICA PARA EL SKU ---
+            int variantIndex = 1;
+            foreach (var variant in product.Variants) {
+                // Buscamos si tiene algún atributo descriptivo (ej: Sabor, Talle, Color) para armar el SKU
+                var firstAttributeValue = variant.Attributes.Values.FirstOrDefault()?.ToString() ?? "";
+                string attributePart = !string.IsNullOrEmpty(firstAttributeValue)
+                    ? $"-{GenerateSlug(firstAttributeValue)}"
+                    : $"-v{variantIndex}";
+
+                // Ej: "sandwich-miga-jamon-y-queso" o "vaso-vidrio-v1"
+                variant.Sku = $"{product.Slug}{attributePart}".ToUpper();
+
+                // Inicializamos los costos en 0 hasta que se registre la primera compra
+                variant.LastPurchasePrice = 0.00m;
+                variant.AverageCost = 0.00m;
+
+                variantIndex++;
+            }
+
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
 
-            // 5. Devolver el producto creado cargando sus relaciones para el Response
             return await GetByIdAsync(product.Id);
         }
 
+        // 2. REGISTRAR INGRESO DE MERCADERÍA (Fórmula de Costo Promedio Ponderado)
+        public async Task<bool> RegisterStockEntryAsync(Guid variantId, int quantityReceived, decimal purchasePrice) {
+            if (quantityReceived <= 0) {
+                throw new BadRequestException("La cantidad recibida debe ser mayor a 0.");
+            }
+            if (purchasePrice < 0) {
+                throw new BadRequestException("El precio de compra no puede ser negativo.");
+            }
 
+            var variant = await _context.ProductVariants.FindAsync(variantId);
+            if (variant == null) throw new NotFoundException($"La variante con ID: '{variantId}' no fue encontrada.");
 
+            int currentStock = variant.Stock;
+            decimal currentAverageCost = variant.AverageCost;
+
+            // Actualizamos siempre el último precio de compra del proveedor
+            variant.LastPurchasePrice = purchasePrice;
+
+            int newTotalStock = currentStock + quantityReceived;
+
+            if (newTotalStock > 0) {
+                // FÓRMULA: ((Stock Actual * Costo Promedio) + (Cantidad Nueva * Costo Nuevo)) / Stock Total
+                decimal newAverageCost = ((currentStock * currentAverageCost) + (quantityReceived * purchasePrice)) / newTotalStock;
+                variant.AverageCost = Math.Round(newAverageCost, 2);
+            } else {
+                // Si por alguna razón el stock era negativo o cero y se neutraliza
+                variant.AverageCost = purchasePrice;
+            }
+
+            // Sumamos el nuevo stock físico
+            variant.Stock = newTotalStock;
+
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+        // 3. OBTENER TODOS PAGINADOS
         public async Task<PagedResultDto<ProductResponseDto>> GetAllAsync(
                                                                     Guid? categoryId = null,
                                                                     Guid? brandId = null,
@@ -44,10 +96,9 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                                                                     int pageNumber = 1,
                                                                     int pageSize = 10) {
 
-            // 1. Validamos que no nos manden páginas o tamaños locos
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
-            if (pageSize > 50) pageSize = 50; // Ponemos un tope para que no nos rompan la API pidiendo 1 millón de registros
+            if (pageSize > 50) pageSize = 50;
 
             var query = _context.Products
                 .Include(p => p.Category)
@@ -55,25 +106,20 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 .Include(p => p.Variants)
                 .AsQueryable();
 
-            // 2. Aplicamos filtros dinámicos (Esto se ejecuta en la BD)
             if (onlyActive) query = query.Where(p => p.IsActive);
             if (categoryId.HasValue) query = query.Where(p => p.CategoryId == categoryId.Value);
             if (brandId.HasValue) query = query.Where(p => p.BrandId == brandId.Value);
 
-            // 3. Contamos el TOTAL de elementos CON los filtros aplicados (Vital para el Frontend)
             var totalItems = await query.CountAsync();
 
-            // 4. LA PAGINACIÓN: Aplicamos Skip y Take antes de ir a buscar la lista final
             var products = await query
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
-            // 5. Mapeamos los productos de esta página a DTOs
             var mappedItems = _mapper.Map<IEnumerable<ProductResponseDto>>(products);
 
-            // 6. Armamos el resultado empaquetado
             return new PagedResultDto<ProductResponseDto> {
                 Items = mappedItems,
                 TotalItems = totalItems,
@@ -82,18 +128,19 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             };
         }
 
+        // 4. OBTENER POR ID
         public async Task<ProductResponseDto?> GetByIdAsync(Guid id) {
-
             var product = await _context.Products
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
                 .Include(p => p.Variants)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
-            if (product== null) throw new NotFoundException("Producto no encontrado");
+            if (product == null) throw new NotFoundException("Producto no encontrado");
             return _mapper.Map<ProductResponseDto>(product);
         }
 
+        // 5. OBTENER POR SLUG
         public async Task<ProductResponseDto?> GetBySlugAsync(string slug) {
             var product = await _context.Products
                 .Include(p => p.Category)
@@ -105,28 +152,26 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             return _mapper.Map<ProductResponseDto>(product);
         }
 
+        // 6. ACTUALIZAR DETALLES
         public async Task<ProductResponseDto?> UpdateAsync(Guid id, ProductRequestDto request) {
             var product = await _context.Products
                 .Include(p => p.Variants)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
-            if (product == null) throw new NotFoundException($"El Producto con Id: '{id}' no se ah encontrado.");
+            if (product == null) throw new NotFoundException($"El Producto con Id: '{id}' no se ha encontrado.");
             _mapper.Map(request, product);
 
-            // Actualizamos las propiedades de auditoría y SEO
             product.UpdatedAt = DateTime.UtcNow;
             product.Slug = GenerateSlug(request.Name);
 
-            // Ahora sí, guardamos los cambios reales en la BD
             await _context.SaveChangesAsync();
-
-            // Devolvemos el producto fresco usando GetById para rehidratar todas las relaciones
             return await GetByIdAsync(id);
         }
 
+        // 7. ACTUALIZAR STOCK MANUAL (Se mantiene para ajustes/ventas de caja)
         public async Task<bool> UpdateStockAsync(Guid variantId, int quantity) {
             var variant = await _context.ProductVariants.FindAsync(variantId);
-            if (variant == null) throw new NotFoundException($"La variante con ID: '{variantId}' no fue encontrado");
+            if (variant == null) throw new NotFoundException($"La variante con ID: '{variantId}' no fue encontrada");
 
             if (quantity < 0 && (variant.Stock + quantity) < 0) {
                 throw new BadRequestException(
@@ -137,28 +182,41 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             variant.Stock += quantity;
             return await _context.SaveChangesAsync() > 0;
         }
+
+        public async Task<bool> UpdatePricesAsync(Guid variantId, UpdatePricesRequestDto dto) {
+            if (dto.Price <= 0) {
+                throw new BadRequestException("El precio de venta debe ser mayor a 0.");
+            }
+
+            var variant = await _context.ProductVariants.FindAsync(variantId);
+            if (variant == null) throw new NotFoundException($"La variante con ID: '{variantId}' no fue encontrada.");
+
+            // Actualizamos los precios de venta
+            variant.Price = dto.Price;
+            variant.CompareAtPrice = dto.CompareAtPrice;
+
+            return await _context.SaveChangesAsync() > 0;
+        }
+
+
+        // 8. ELIMINAR
         public async Task<bool> DeleteAsync(Guid id) {
             var product = await _context.Products
                 .Include(p => p.Variants)
                 .FirstOrDefaultAsync(p => p.Id == id);
 
-            if (product == null) throw new NotFoundException($"El Producto con Id: '{id}' no se ah encontrado.");
+            if (product == null) throw new NotFoundException($"El Producto con Id: '{id}' no se ha encontrado.");
 
             _context.Products.Remove(product);
-          await _context.SaveChangesAsync();
+            await _context.SaveChangesAsync();
             return true;
-
         }
-
-
-
-
 
         private string GenerateSlug(string phrase) {
             string str = phrase.ToLower();
-            str = Regex.Replace(str, @"[^a-z0-9\s-]", ""); // Quita caracteres especiales
-            str = Regex.Replace(str, @"\s+", " ").Trim(); // Quita espacios extra
-            str = Regex.Replace(str, @"\s", "-"); // Espacios por guiones
+            str = Regex.Replace(str, @"[^a-z0-9\s-]", "");
+            str = Regex.Replace(str, @"\s+", " ").Trim();
+            str = Regex.Replace(str, @"\s", "-");
             return str;
         }
     }

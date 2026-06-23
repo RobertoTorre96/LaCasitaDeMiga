@@ -2,10 +2,6 @@
 
 namespace LaCasitaDeMiga.Features.Products.DTOs {
     public class ProductVariantRequestDto {
-        [Required(ErrorMessage = "El SKU es obligatorio.")]
-        [StringLength(50, ErrorMessage = "El SKU no puede superar los {1} caracteres.")]
-        public string Sku { get; set; } = null!;
-
         [Required(ErrorMessage = "El precio es obligatorio.")]
         [Range(0.01, double.MaxValue, ErrorMessage = "El precio debe ser mayor a 0.")]
         public decimal Price { get; set; }
@@ -21,7 +17,7 @@ namespace LaCasitaDeMiga.Features.Products.DTOs {
         public int LowStockThreshold { get; set; } = 3;
 
         // Diccionario genérico para los atributos dinámicos (jsonb)
+        // Ejemplo: { "Sabor": "Jamón y Queso", "Tamaño": "Copetín" }
         public Dictionary<string, object> Attributes { get; set; } = new Dictionary<string, object>();
-
     }
 }

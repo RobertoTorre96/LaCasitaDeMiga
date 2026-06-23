@@ -29,11 +29,24 @@ namespace LaCasitaDeMiga.Features.Products {
                 .HasColumnName("compare_at_price")
                 .HasColumnType("numeric(12,2)");
 
+            // --- NUEVOS MAPEOS PARA COSTOS ---
+            builder.Property(v => v.LastPurchasePrice)
+                .HasColumnName("last_purchase_price")
+                .HasColumnType("numeric(12,2)")
+                .HasDefaultValue(0.00m)
+                .IsRequired();
+
+            builder.Property(v => v.AverageCost)
+                .HasColumnName("average_cost")
+                .HasColumnType("numeric(12,2)")
+                .HasDefaultValue(0.00m)
+                .IsRequired();
+            // ─────────────────────────────────
+
             builder.Property(v => v.Stock)
                 .HasColumnName("stock")
                 .HasDefaultValue(0);
 
-            // Configuramos tu nuevo campo de Stock Crítico
             builder.Property(v => v.LowStockThreshold)
                 .HasColumnName("low_stock_threshold")
                 .HasDefaultValue(3);
@@ -46,21 +59,18 @@ namespace LaCasitaDeMiga.Features.Products {
                 .HasColumnName("created_at")
                 .HasDefaultValueSql("CURRENT_TIMESTAMP");
 
-            // 3. SERIALIZACIÓN JSONB: El puente entre C# y PostgreSQL
+            // 3. SERIALIZACIÓN JSONB
             builder.Property(v => v.Attributes)
                 .HasColumnName("attributes")
                 .HasColumnType("jsonb")
-                // HasConversion transforma los datos al ir y venir de la BD
                 .HasConversion(
-                    // Al GUARDAR: Convierte el Diccionario C# a un String JSON
                     v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null!),
-                    // Al LEER: Convierte el String JSON de la BD de vuelta a un Diccionario C#
                     v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions)null!)
                          ?? new Dictionary<string, object>()
                 )
                 .HasDefaultValueSql("'{}'::jsonb");
 
-            // 4. Configuración de Índices (Tal cual los creaste en DBeaver)
+            // 4. Configuración de Índices
             builder.HasIndex(v => v.Sku)
                 .IsUnique()
                 .HasDatabaseName("product_variants_sku_key");
@@ -68,14 +78,11 @@ namespace LaCasitaDeMiga.Features.Products {
             builder.HasIndex(v => v.ProductId)
                 .HasDatabaseName("idx_variants_product");
 
-            // 5. Relación con el Padre (Producto) e Integridad Referencial
+            // 5. Relación con el Padre
             builder.HasOne(v => v.Product)
-                .WithMany(p => p.Variants)   // Un producto tiene muchas variantes
+                .WithMany(p => p.Variants)
                 .HasForeignKey(v => v.ProductId)
-                .OnDelete(DeleteBehavior.Cascade); // ON DELETE CASCADE (Tu regla del DDL)
+                .OnDelete(DeleteBehavior.Cascade);
         }
     }
-
 }
-    
-

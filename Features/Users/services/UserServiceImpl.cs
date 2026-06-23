@@ -113,7 +113,8 @@ namespace LaCasitaDeMiga.Features.Users.services {
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-            var expiry = DateTime.UtcNow.AddMinutes(double.Parse(_configuration["Jwt:DurationInMinutes"]!));
+            var durationStr = _configuration["Jwt:DurationInMinutes"] ?? "60";
+            var expiry = DateTime.UtcNow.AddMinutes(double.Parse(durationStr));
 
             var token = new SecurityTokenDescriptor {
                 Subject = new ClaimsIdentity(claims),

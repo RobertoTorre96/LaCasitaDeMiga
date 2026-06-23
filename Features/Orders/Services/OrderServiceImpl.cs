@@ -6,7 +6,7 @@ using LaCasitaDeMiga.Data;
 using Microsoft.EntityFrameworkCore;
 
 namespace LaCasitaDeMiga.Features.Orders.Services {
-    public class OrderServiceImpl : IOrderService {
+   public class OrderServiceImpl : IOrderService{
         private readonly ApplicationDbContext _context;
         private readonly IProductService _productService;
         private readonly IMapper _mapper;
@@ -19,29 +19,25 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
 
         // 1. EL CHECKOUT (CREAR ORDEN CON TRANSACCIÓN)
         public async Task<OrderResponseDto> CreateOrderAsync(OrderRequestDto request) {
+            // Iniciamos la transacción ACID en PostgreSQL
             using var transaction = await _context.Database.BeginTransactionAsync();
 
             try {
-                // Primero validamos si el usuario/cliente realmente existe en la BD
-                // para evitar que creen órdenes con un Guid falso que rompa la FK de Postgres.
-                var userExists = await _context.Users.AnyAsync(u => u.Id == request.CustomerId);
-                if (!userExists) {
-                    throw new NotFoundException($"El cliente con ID {request.CustomerId} no está registrado.");
-                }
-
                 var order = new OrderEntity {
                     CustomerId = request.CustomerId,
                     Status = EOrderStatus.Pending,
-                    TotalAmount = 0
+                    TotalAmount = 0 // Lo calcularemos fila por fila
                 };
 
                 decimal totalAccumulated = 0;
 
                 foreach (var itemDto in request.Items) {
+
                     if (itemDto.Quantity <= 0) {
                         throw new BadRequestException($"Cantidad inválida ({itemDto.Quantity}) para la variante {itemDto.ProductVariantId}. Debe ser mayor a 0.");
                     }
 
+                    // Buscamos la variante directo en la BD para validar existencia y obtener el precio real
                     var variant = await _context.ProductVariants
                         .Include(v => v.Product)
                         .FirstOrDefaultAsync(v => v.Id == itemDto.ProductVariantId);
@@ -50,16 +46,20 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
                         throw new NotFoundException($"La variante de producto con ID {itemDto.ProductVariantId} no existe.");
                     }
 
+                    // Intentamos restar el stock usando tu servicio de productos.
+                    // Le pasamos la cantidad en NEGATIVO para que reste.
+                    // Si no hay stock, tu UpdateStockAsync internamente devolverá false.
                     bool stockUpdated = await _productService.UpdateStockAsync(variant.Id, -itemDto.Quantity);
 
                     if (!stockUpdated) {
                         throw new BadRequestException($"Stock insuficiente para el producto: {variant.Product?.Name ?? "Desconocido"} (SKU: {variant.Sku}). Disponibles: {variant.Stock}");
                     }
 
+                    // Creamos el ítem histórico de la orden
                     var orderItem = new OrderItemEntity {
                         ProductVariantId = variant.Id,
                         Quantity = itemDto.Quantity,
-                        UnitPrice = variant.Price
+                        UnitPrice = variant.Price // Congelamos el precio actual de la BD
                     };
 
                     totalAccumulated += orderItem.Quantity * orderItem.UnitPrice;
@@ -68,14 +68,15 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
 
                 order.TotalAmount = totalAccumulated;
 
+                // Guardamos en la base de datos
                 _context.Orders.Add(order);
                 await _context.SaveChangesAsync();
 
+                // Si todo llegó acá sin excepciones, consolidamos los cambios físicamente
                 await transaction.CommitAsync();
 
-                // MODIFICACIÓN AQUÍ: Agregamos .Include(o => o.Customer) para hidratar el Mapper
+                // Rehidratamos la entidad con Includes para que el AutoMapper arme lindo el VariantName
                 var fullOrder = await _context.Orders
-                    .Include(o => o.Customer)
                     .Include(o => o.Items)
                         .ThenInclude(i => i.ProductVariant)
                             .ThenInclude(v => v.Product)
@@ -83,16 +84,15 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
 
                 return _mapper.Map<OrderResponseDto>(fullOrder);
             } catch (Exception) {
+                // Si algo falló (Ej: BadRequestException de stock), deshacemos absolutamente todo
                 await transaction.RollbackAsync();
-                throw;
+                throw; // Re-lanzamos para que el ExceptionMiddleware global lo capture
             }
         }
 
         // 2. OBTENER POR ID
         public async Task<OrderResponseDto> GetByIdAsync(Guid id) {
-            // MODIFICACIÓN AQUÍ: Agregamos .Include(o => o.Customer)
             var order = await _context.Orders
-                .Include(o => o.Customer)
                 .Include(o => o.Items)
                     .ThenInclude(i => i.ProductVariant)
                         .ThenInclude(v => v.Product)
@@ -107,9 +107,7 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
 
         // 3. HISTORIAL DEL CLIENTE
         public async Task<IEnumerable<OrderResponseDto>> GetByCustomerIdAsync(Guid customerId) {
-            // MODIFICACIÓN AQUÍ: Agregamos .Include(o => o.Customer)
             var orders = await _context.Orders
-                .Include(o => o.Customer)
                 .Include(o => o.Items)
                     .ThenInclude(i => i.ProductVariant)
                         .ThenInclude(v => v.Product)
@@ -130,8 +128,10 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
                 throw new NotFoundException($"La orden con ID {orderId} no existe.");
             }
 
+            // Lógica de negocio: Si se cancela una orden que ya estaba procesada, devolvemos el stock
             if (newStatus == EOrderStatus.Cancelled && order.Status != EOrderStatus.Cancelled) {
                 foreach (var item in order.Items) {
+                    // Pasamos la cantidad en POSITIVO para devolver el stock a la tienda
                     await _productService.UpdateStockAsync(item.ProductVariantId, item.Quantity);
                 }
             }

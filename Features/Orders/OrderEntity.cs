@@ -14,7 +14,7 @@ namespace LaCasitaDeMiga.Features.Orders {
 
         // Estado de la orden (Usa nuestro Enum)
         public EOrderStatus Status { get; set; } = EOrderStatus.Pending;
-
+        
         // Monto total acumulado de la orden
         public decimal TotalAmount { get; set; }
 

@@ -9,17 +9,21 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             bool onlyActive = true,
             int pageNumber = 1,
             int pageSize = 10);
+
         Task<ProductResponseDto> CreateAsync(ProductRequestDto request);
         Task<ProductResponseDto?> GetByIdAsync(Guid id);
         Task<ProductResponseDto?> GetBySlugAsync(string slug);
-
-
         Task<ProductResponseDto?> UpdateAsync(Guid id, ProductRequestDto request);
+
+        // Se mantiene para el egreso por ventas o ajustes directos de stock
         Task<bool> UpdateStockAsync(Guid variantId, int quantity);
 
+        // --- NUEVO MÉTODO DECLARADO ---
+        // Se usa para el ingreso de mercadería de proveedores y recalcular el costo promedio ponderado
+        Task<bool> RegisterStockEntryAsync(Guid variantId, int quantityReceived, decimal purchasePrice);
+        // ──────────────────────────────
+        Task<bool> UpdatePricesAsync(Guid variantId, UpdatePricesRequestDto dto);
+
         Task<bool> DeleteAsync(Guid id);
-
-
-
     }
 }

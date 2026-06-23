@@ -87,5 +87,36 @@ namespace LaCasitaDeMiga.Features.Products {
 
             return Ok(new { message = "Stock actualizado correctamente." });
         }
+
+
+        // 8. NUEVO: REGISTRAR INGRESO DE STOCK PROVEEDOR (Calcular Costo Promedio)
+        // POST: api/products/variants/3fa85f64-5717-4562-b3fc-2c963f66afa6/stock-entry
+        [HttpPost("variants/{variantId:guid}/stock-entry")]
+        public async Task<IActionResult> RegisterStockEntry(Guid variantId, [FromBody] StockEntryRequestDto request) {
+            var success = await _productService.RegisterStockEntryAsync(
+                variantId,
+                request.QuantityReceived,
+                request.PurchasePrice
+            );
+
+            if (!success) {
+                return BadRequest(new { message = "No se pudo registrar el ingreso de mercadería en la base de datos." });
+            }
+
+            return Ok(new { message = "Ingreso de stock registrado y costo promedio recalculado con éxito." });
+        }
+
+        // 9. ACTUALIZAR PRECIOS DE VENTA DE UNA VARIANTE (Cambio de cartelera)
+        // PUT: api/products/variants/3fa85f64-5717-4562-b3fc-2c963f66afa6/prices
+        [HttpPut("variants/{variantId:guid}/prices")]
+        public async Task<IActionResult> UpdatePrices(Guid variantId, [FromBody] UpdatePricesRequestDto request) {
+            var success = await _productService.UpdatePricesAsync(variantId, request);
+
+            if (!success) {
+                return BadRequest(new { message = "No se pudieron actualizar los precios en la base de datos." });
+            }
+
+            return Ok(new { message = "Precios de venta actualizados correctamente." });
+        }
     }
 }

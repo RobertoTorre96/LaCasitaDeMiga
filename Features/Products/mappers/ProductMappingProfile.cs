@@ -2,8 +2,7 @@
 using LaCasitaDeMiga.Features.Products.DTOs;
 
 namespace LaCasitaDeMiga.Features.Products.mappers {
-    public class ProductMappingProfile : Profile  {
-        public Guid Id { get; private set; }
+    public class ProductMappingProfile : Profile {
 
         public ProductMappingProfile() {
 
@@ -29,7 +28,11 @@ namespace LaCasitaDeMiga.Features.Products.mappers {
                 .ForMember(dest => dest.ProductId, opt => opt.Ignore())
                 .ForMember(dest => dest.IsActive, opt => opt.Ignore())
                 .ForMember(dest => dest.CreatedAt, opt => opt.Ignore())
-                .ForMember(dest => dest.Product, opt => opt.Ignore());
+                .ForMember(dest => dest.Product, opt => opt.Ignore())
+                // --- CORRECCIONES NUEVAS (Ignorados en la Entrada) ---
+                .ForMember(dest => dest.Sku, opt => opt.Ignore())              // Lo genera el Service automáticamente
+                .ForMember(dest => dest.LastPurchasePrice, opt => opt.Ignore())// Nace en 0 hasta la primera compra
+                .ForMember(dest => dest.AverageCost, opt => opt.Ignore());     // Nace en 0 hasta la primera compra
 
 
             // =========================================================
@@ -43,15 +46,12 @@ namespace LaCasitaDeMiga.Features.Products.mappers {
                 .ForMember(dest => dest.Variants, opt => opt.MapFrom(src => src.Variants));
 
             // De Variante Hijo a ProductVariantResponseDto
-            // Nota: IsLowStock no se mapea acá porque se calcula sola en el DTO (=>)
+            // Nota: IsLowStock, LastPurchasePrice y AverageCost se mapean automáticamente por coincidencia de nombres
             CreateMap<ProductVariantEntity, ProductVariantResponseDto>();
 
             // Para las relaciones simples de Categoría y Marca hacia el ProductRelationDto
-            // Esto asume que CategoryEntity y BrandEntity tienen una propiedad 'Id' y 'Name'
             CreateMap<Features.Categories.CategoryEntity, ProductRelationDto>();
             CreateMap<Features.Brands.BrandEntity, ProductRelationDto>();
         }
-
-
     }
 }

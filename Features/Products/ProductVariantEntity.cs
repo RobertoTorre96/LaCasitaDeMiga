@@ -1,13 +1,18 @@
 ﻿namespace LaCasitaDeMiga.Features.Products {
     public class ProductVariantEntity {
-
         public Guid Id { get; set; }
         public Guid ProductId { get; set; }
         public string Sku { get; set; } = null!;
 
-        // Usamos decimal en C# para mapear el numeric(12,2) de la BD (ideal para dinero)
+        // 1. Precio de Venta (Público)
         public decimal Price { get; set; }
         public decimal? CompareAtPrice { get; set; } // Opcional (null), para precios de oferta
+
+        // 2. NUEVO: Precio de Compra (Última factura de proveedor)
+        public decimal LastPurchasePrice { get; set; } = 0.00m;
+
+        // 3. NUEVO: Precio Promedio (Costo Ponderado para Ganancias)
+        public decimal AverageCost { get; set; } = 0.00m;
 
         public int Stock { get; set; }
         public int LowStockThreshold { get; set; } = 3;
@@ -20,6 +25,5 @@
 
         // Propiedad de navegación (Relación inversa hacia el padre)
         public ProductEntity Product { get; set; } = null!;
-
     }
 }
