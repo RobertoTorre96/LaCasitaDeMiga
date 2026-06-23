@@ -72,4 +72,17 @@ app.UseAuthorization();
 
 app.MapControllers();
 
+// --- AUTO-MIGRACIÓN PARA PRODUCTION (Agregá esto antes de app.Run()) ---
+using (var scope = app.Services.CreateScope()) {
+    var services = scope.ServiceProvider;
+    try {
+        var context = services.GetRequiredService<ApplicationDbContext>();
+        // Esto le dice a PostgreSQL en Railway: "Si hay tablas o columnas nuevas en el código, crealas ya"
+        await context.Database.MigrateAsync();
+    } catch (Exception ex) {
+        var logger = services.GetRequiredService<ILogger<Program>>();
+        logger.LogError(ex, "Ocurrió un error al aplicar las migraciones en la base de datos.");
+    }
+}
+
 app.Run();
