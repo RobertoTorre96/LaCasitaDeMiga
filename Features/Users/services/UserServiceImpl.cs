@@ -1,8 +1,10 @@
 ﻿using AutoMapper;
 using Google.Apis.Auth;
+using LaCasitaDeMiga.Common.DTOs;
 using LaCasitaDeMiga.Data;
 using LaCasitaDeMiga.Exceptions;
 using LaCasitaDeMiga.Features.Common.services.MailService;
+using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Features.Users.DTOs;
 using LaCasitaDeMiga.Features.Users.role;
 using Microsoft.EntityFrameworkCore;
@@ -109,6 +111,39 @@ namespace LaCasitaDeMiga.Features.Users.services {
             return new AuthResponseDto {
                 User = userDto,
                 Token = GenerateJwtToken(user)
+            };
+        }
+
+        public async Task<PagedResultDto<UserResponseDto>> GetAllAsync(
+                                                                    bool onlyActive = true,
+                                                                    int pageNumber = 1,
+                                                                    int pageSize = 10) {
+
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 50) pageSize = 50;
+
+
+            var query = _context.Users.AsQueryable();
+
+            if (onlyActive) query = query.Where(p => p.IsActive);
+
+            var totalItems = await query.CountAsync();
+          
+            var users = await query
+                .OrderByDescending(p => p.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+
+            var mappedItems = _mapper.Map<IEnumerable<UserResponseDto>>(users);
+
+            return new PagedResultDto<UserResponseDto> {
+                Items = mappedItems,
+                TotalItems = totalItems,
+                PageNumber = pageNumber,
+                PageSize = pageSize
             };
         }
 

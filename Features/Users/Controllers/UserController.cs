@@ -1,4 +1,7 @@
-﻿using LaCasitaDeMiga.Features.Users.DTOs;
+﻿using LaCasitaDeMiga.Common.DTOs;
+using LaCasitaDeMiga.Features.Products.DTOs;
+using LaCasitaDeMiga.Features.Products.Services;
+using LaCasitaDeMiga.Features.Users.DTOs;
 using LaCasitaDeMiga.Features.Users.services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -11,6 +14,15 @@ namespace LaCasitaDeMiga.Features.Users.Controllers {
 
         public UserController(IUserService userService) {
             _userService = userService;
+        }
+
+        [HttpGet]
+        public async Task<ActionResult<PagedResultDto<UserResponseDto>>> GetAll([FromQuery] bool onlyActive = true,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10) {
+            var users = await _userService.GetAllAsync(onlyActive, pageNumber, pageSize);
+
+            return Ok(users);
         }
 
         /// <summary>
