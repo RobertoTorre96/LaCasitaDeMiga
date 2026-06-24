@@ -1,7 +1,11 @@
-﻿using MimeKit;
-using MimeKit.Text;          // 💡 Soluciona: TextFormat.Html
-using MailKit.Security;      // 💡 Soluciona: SecureSocketOptions
-using MailKit.Net.Smtp;
+﻿using Google.Apis.Gmail.v1;
+using Google.Apis.Gmail.v1.Data;
+using Google.Apis.Services;
+using System.Net;
+using System.Net.Http.Headers;
+using System.Net.Mail;
+using System.Text;
+using System.Text.Json;
 
 namespace LaCasitaDeMiga.Features.Common.services.MailService {
     public class EmailServiceImpl :IEmailService {
@@ -13,43 +17,34 @@ namespace LaCasitaDeMiga.Features.Common.services.MailService {
         }
 
         public async Task SendEmailAsync(string toEmail, string subject, string body) {
-            // 1. Creamos la estructura del mensaje
-            var email = new MimeMessage();
+            var senderEmail = _configuration["Gmail:Email"] ?? _configuration["Gmail__Email"];
+            var appPassword = _configuration["Gmail:AppPassword"] ?? _configuration["Gmail__AppPassword"];
 
-            // Remitente (Vos)
-            email.From.Add(new MailboxAddress(
-                _configuration["EmailSettings:SenderName"],
-                _configuration["EmailSettings:SenderEmail"]
-            ));
+            if (string.IsNullOrEmpty(senderEmail) || string.IsNullOrEmpty(appPassword)) {
+                throw new Exception("Las credenciales de Gmail no están configuradas.");
+            }
 
-            // Destinatario (El cliente)
-            email.To.Add(MailboxAddress.Parse(toEmail));
+            // Usamos el cliente nativo de .NET apuntando al servidor de Google
+            using (var client = new SmtpClient("smtp.gmail.com", 587)) {
+                client.EnableSsl = true; // Activa TLS de forma segura
+                client.UseDefaultCredentials = false;
+                client.Credentials = new NetworkCredential(senderEmail, appPassword);
 
-            // Asunto y Cuerpo (Soporta HTML para que quede lindo)
-            email.Subject = subject;
-            email.Body = new TextPart(TextFormat.Html) { Text = body };
+                var mailMessage = new MailMessage {
+                    From = new MailAddress(senderEmail, "La Casita de Miga"),
+                    Subject = subject,
+                    Body = body,
+                    IsBodyHtml = true
+                };
 
-            // 2. Nos conectamos al servidor SMTP de Google y enviamos
-            using var smtp = new SmtpClient();
-            try {
-                // Conexión segura por puerto 587 (StartTls)
-                await smtp.ConnectAsync(
-                    _configuration["EmailSettings:SmtpServer"],
-                    int.Parse(_configuration["EmailSettings:Port"]!),
-                    SecureSocketOptions.StartTls
-                );
+                mailMessage.To.Add(toEmail);
 
-                // Autenticación con tu usuario y la contraseña de 16 letras
-                await smtp.AuthenticateAsync(
-                    _configuration["EmailSettings:Username"],
-                    _configuration["EmailSettings:Password"]
-                );
-
-                // Despacho del mail
-                await smtp.SendAsync(email);
-            } finally {
-                // Pase lo que pase, nos desconectamos limpiamente del servidor
-                await smtp.DisconnectAsync(true);
+                try {
+                    // Enviamos de forma asincrónica usando las credenciales seguras (App Password)
+                    await client.SendMailAsync(mailMessage);
+                } catch (Exception ex) {
+                    throw new Exception($"Error al despachar el correo mediante Gmail: {ex.Message}");
+                }
             }
         }
 
