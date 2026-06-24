@@ -30,13 +30,26 @@ namespace LaCasitaDeMiga.Features.Users {
                 .HasColumnName("password_hash");
 
             builder.Property(u => u.Role)
-                .HasColumnName("role")
+                 .HasColumnName("role")
+                 .IsRequired()
+                 .HasConversion<string>();
+
+            builder.Property(u => u.IsActive)
+                .HasColumnName("is_active")
                 .IsRequired()
-                .HasDefaultValue("Customer");
+                .HasDefaultValue(true);
 
             builder.Property(u => u.CreatedAt)
                 .HasColumnName("created_at")
                 .IsRequired();
+
+            builder.Property(u => u.PasswordResetToken)
+                .HasColumnName("password_reset_token")
+                .IsRequired(false); // Permite nulos en la BD
+
+            builder.Property(u => u.ResetTokenExpiry)
+                .HasColumnName("reset_token_expiry")
+                .IsRequired(false); // Permite nulos en la BD
         }
     }
 }

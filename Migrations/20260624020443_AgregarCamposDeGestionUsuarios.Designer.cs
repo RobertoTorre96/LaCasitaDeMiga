@@ -3,6 +3,7 @@ using System;
 using LaCasitaDeMiga.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LaCasitaDeMiga.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260624020443_AgregarCamposDeGestionUsuarios")]
+    partial class AgregarCamposDeGestionUsuarios
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -325,17 +328,9 @@ namespace LaCasitaDeMiga.Migrations
                         .HasColumnType("text")
                         .HasColumnName("password_hash");
 
-                    b.Property<string>("PasswordResetToken")
-                        .HasColumnType("text")
-                        .HasColumnName("password_reset_token");
-
                     b.Property<string>("PictureUrl")
                         .HasColumnType("text")
                         .HasColumnName("picture_url");
-
-                    b.Property<DateTime?>("ResetTokenExpiry")
-                        .HasColumnType("timestamp with time zone")
-                        .HasColumnName("reset_token_expiry");
 
                     b.Property<string>("Role")
                         .IsRequired()

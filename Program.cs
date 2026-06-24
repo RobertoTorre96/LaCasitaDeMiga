@@ -2,6 +2,7 @@ using LaCasitaDeMiga.Data;
 using LaCasitaDeMiga.Exceptions;
 using LaCasitaDeMiga.Features.Brands.Services;
 using LaCasitaDeMiga.Features.Categories.Services;
+using LaCasitaDeMiga.Features.Common.services.MailService;
 using LaCasitaDeMiga.Features.DashBoard.Services;
 using LaCasitaDeMiga.Features.Delivery.services;
 using LaCasitaDeMiga.Features.GoogleGeoCoding.Services;
@@ -55,6 +56,7 @@ builder.Services.AddScoped<IOrderService, OrderServiceImpl>();
 builder.Services.AddScoped<IProductService, ProductServiceImpl>();
 builder.Services.AddScoped<IUserService, UserServiceImpl>();
 builder.Services.AddScoped<IDashboardService, DashboardServiceImpl>();
+builder.Services.AddScoped<IEmailService, EmailServiceImpl>();
 
 // --- MANEJO GLOBAL DE EXCEPCIONES ---
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();

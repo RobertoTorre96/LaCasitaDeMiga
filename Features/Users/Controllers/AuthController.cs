@@ -35,5 +35,24 @@ namespace LaCasitaDeMiga.Features.Users.Controllers {
             var result = await _userService.LoginAsync(request);
             return Ok(result);
         }
+
+        // POST: api/Auth/forgot-password
+        [HttpPost("forgot-password")]
+        public async Task<IActionResult> ForgotPassword([FromBody] ForgotPasswordDto request) {
+            await _userService.ForgotPasswordAsync(request);
+
+            // Siempre respondemos con éxito por seguridad (para no dar pistas de qué mails existen)
+            return Ok(new { Message = "Si el correo se encuentra registrado, se enviarán las instrucciones de recuperación." });
+        }
+
+        // POST: api/Auth/reset-password
+        [HttpPost("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto request) {
+            await _userService.ResetPasswordAsync(request);
+
+            return Ok(new { Message = "Tu contraseña ha sido restablecida con éxito. Ya puedes iniciar sesión." });
+        }
+
+
     }
 }

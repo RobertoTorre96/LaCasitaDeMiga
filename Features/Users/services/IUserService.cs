@@ -5,5 +5,10 @@ namespace LaCasitaDeMiga.Features.Users.services {
         Task<AuthResponseDto> GoogleLoginAsync(GoogleTokenRequestDto request);
         Task<AuthResponseDto> RegisterAsync(RegisterRequestDto request);
         Task<AuthResponseDto> LoginAsync(LoginRequestDto request);
+
+        Task<bool> UpdateStatusAndRoleAsync(Guid id, UserUpdateRequestDto dto);
+        List<string> GetAvailableRoles();
+        Task ForgotPasswordAsync(ForgotPasswordDto dto);
+        Task ResetPasswordAsync(ResetPasswordDto dto);
     }
 }

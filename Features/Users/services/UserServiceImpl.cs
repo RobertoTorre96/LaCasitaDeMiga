@@ -1,12 +1,14 @@
-﻿using Google.Apis.Auth;
+﻿using AutoMapper;
+using Google.Apis.Auth;
 using LaCasitaDeMiga.Data;
 using LaCasitaDeMiga.Exceptions;
+using LaCasitaDeMiga.Features.Common.services.MailService;
 using LaCasitaDeMiga.Features.Users.DTOs;
+using LaCasitaDeMiga.Features.Users.role;
 using Microsoft.EntityFrameworkCore;
-using AutoMapper;
+using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
-using Microsoft.IdentityModel.Tokens;
 using System.Text;
 
 namespace LaCasitaDeMiga.Features.Users.services {
@@ -14,11 +16,13 @@ namespace LaCasitaDeMiga.Features.Users.services {
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
+        private readonly IEmailService _emailService; // 💡 Inyección agregada
 
-        public UserServiceImpl(ApplicationDbContext context, IConfiguration configuration, IMapper mapper) {
+        public UserServiceImpl(ApplicationDbContext context, IConfiguration configuration, IMapper mapper,IEmailService emailService) {
             _context = context;
             _configuration = configuration;
             _mapper = mapper;
+            _emailService = emailService; 
         }
 
         // 1. INICIO DE SESIÓN CON GOOGLE (Modificado el retorno)
@@ -35,7 +39,8 @@ namespace LaCasitaDeMiga.Features.Users.services {
                     Email = payload.Email,
                     Name = payload.Name,
                     PictureUrl = payload.Picture,
-                    Role = "Customer",
+                    Role = UserRole.Customer, // 💡 Cambiado a Enum
+                    IsActive = true,
                     CreatedAt = DateTime.UtcNow
                 };
                 _context.Users.Add(user);
@@ -66,7 +71,8 @@ namespace LaCasitaDeMiga.Features.Users.services {
                 Email = request.Email,
                 Name = request.Name,
                 PasswordHash = passwordHash,
-                Role = "Customer",
+                Role = UserRole.Customer, // 💡 Cambiado a Enum,
+                IsActive = true,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -93,6 +99,10 @@ namespace LaCasitaDeMiga.Features.Users.services {
             if (!isPasswordValid) {
                 throw new UnauthorizedException("Credenciales incorrectas.");
             }
+            // 💡 Cortocircuito: Si el usuario fue desactivado por un Admin, no lo dejamos pasar
+            if (!user.IsActive) {
+                throw new BadRequestException("Tu cuenta se encuentra deshabilitada. Contacta al soporte.");
+            }
 
             var userDto = _mapper.Map<UserResponseDto>(user);
 
@@ -102,13 +112,93 @@ namespace LaCasitaDeMiga.Features.Users.services {
             };
         }
 
+        public async Task<bool> UpdateStatusAndRoleAsync(Guid id, UserUpdateRequestDto dto) {
+            var user = await _context.Users.FindAsync(id);
+            if (user == null) return false;
+
+            user.IsActive = dto.IsActive;
+            user.Role = dto.Role; // Asignación directa Enum a Enum gracias al tipado fuerte
+
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        public async Task ResetPasswordAsync(ResetPasswordDto dto) {
+            // 1. Buscamos al usuario que tenga el token ingresado
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.PasswordResetToken == dto.Token);
+
+            // 2. Si no existe o el token ya expiró (comparando con la hora UTC actual), tiramos excepción
+            if (user == null || user.ResetTokenExpiry < DateTime.UtcNow) {
+                throw new BadRequestException("El token de recuperación es inválido o ya ha expirado.");
+            }
+
+            // 3. Hasheamos la nueva contraseña de forma segura usando BCrypt
+            string newPasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            user.PasswordHash = newPasswordHash;
+
+            // 4. IMPORTANTE: Borramos el token y su expiración para que no se pueda reutilizar el mismo enlace
+            user.PasswordResetToken = null;
+            user.ResetTokenExpiry = null;
+
+            // 5. Guardamos los cambios en Neon
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+        }
+
+
+
+        public async Task ForgotPasswordAsync(ForgotPasswordDto dto) {
+            // 1. Buscamos si el usuario existe en Neon
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
+
+            // Por seguridad, si el usuario no existe, no le avisamos al front (evita que husmeen emails válidos)
+            if (user == null) return;
+
+            // 2. Generamos un token aleatorio único y seguro
+            string token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+
+            // 3. Guardamos el token y el tiempo de expiración (15 minutos desde ahora)
+            user.PasswordResetToken = token;
+            user.ResetTokenExpiry = DateTime.UtcNow.AddMinutes(15);
+
+            _context.Users.Update(user);
+            await _context.SaveChangesAsync();
+
+            // 4. Armamos el enlace que irá al Frontend (Localhost en desarrollo, tu web en producción)
+            var frontendUrl = _configuration["Urls:Frontend"] ?? "http://localhost:5173";
+            string resetLink = $"{frontendUrl}/reset-password?token={token}";
+
+            // 5. Diseñamos el cuerpo del Mail en HTML lindo
+            string subject = "Restablecer contraseña - La Casita de Miga";
+            string body = $@"
+        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;'>
+            <h2 style='color: #d9534f; text-align: center;'>La Casita de Miga</h2>
+            <p>Hola, <strong>{user.Name}</strong>,</p>
+            <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta. Para continuar, haz clic en el siguiente botón:</p>
+            <div style='text-align: center; margin: 30px 0;'>
+                <a href='{resetLink}' style='background-color: #d9534f; color: white; padding: 12px 25px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block;'>Restablecer Contraseña</a>
+            </div>
+            <p style='color: #777; font-size: 12px;'>Este enlace expirará en 15 minutos. Si no solicitaste este cambio, puedes ignorar este correo de forma segura.</p>
+        </div>";
+
+            // 6. Despachamos el correo usando MailKit
+            await _emailService.SendEmailAsync(user.Email, subject, body);
+        }
+
+        public List<string> GetAvailableRoles() {
+            // Obtiene todos los nombres definidos en el enum UserRole
+            return Enum.GetNames(typeof(UserRole)).ToList();
+        }
+
+
         // 🔐 NUEVO MÉTODO PRIVADO: EL MOTOR QUE GENERA EL JWT
         private string GenerateJwtToken(UserEntity user) {
             var claims = new[] {
                 new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new Claim(ClaimTypes.Email, user.Email),
                 new Claim(ClaimTypes.Name, user.Name),
-                new Claim(ClaimTypes.Role, user.Role)
+                new Claim(ClaimTypes.Role, user.Role.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
