@@ -13,36 +13,50 @@ namespace LaCasitaDeMiga.Features.Products.Services {
         private readonly IMapper _mapper;
 
         public ProductServiceImpl(ApplicationDbContext context, IMapper mapper) {
-            _context = context;
-            _mapper = mapper;
+            this._context = context;
+            this._mapper = mapper;
         }
 
-        // 1. CREAR PRODUCTO (Con generación de SKU automática)
+        // 1. CREAR PRODUCTO (Con generación de SKU y Priority automática/opcional)
         public async Task<ProductResponseDto> CreateAsync(ProducCreatetRequestDto request) {
             var product = _mapper.Map<ProductEntity>(request);
 
-            // Generamos el Slug único basado en el nombre
+            // El Slug siempre se genera de forma automática basado en el nombre base
             product.Slug = GenerateSlug(request.Name);
 
             if (await _context.Products.AnyAsync(p => p.Slug == product.Slug)) {
                 product.Slug = $"{product.Slug}-{Guid.NewGuid().ToString().Substring(0, 5)}";
             }
 
-            // --- LÓGICA AUTOMÁTICA PARA EL SKU ---
+            // Calculamos la prioridad máxima actual de la base de datos por si se necesita asignar
+            int maxPriority = await _context.ProductVariants
+                .Select(v => (int?)v.Priority)
+                .MaxAsync() ?? 0;
+
+            // --- LÓGICA PARA EL SKU (OPCIONAL) Y PRIORIDADES ---
             int variantIndex = 1;
             foreach (var variant in product.Variants) {
-                // Buscamos si tiene algún atributo descriptivo (ej: Sabor, Talle, Color) para armar el SKU
-                var firstAttributeValue = variant.Attributes.Values.FirstOrDefault()?.ToString() ?? "";
-                string attributePart = !string.IsNullOrEmpty(firstAttributeValue)
-                    ? $"-{GenerateSlug(firstAttributeValue)}"
-                    : $"-v{variantIndex}";
 
-                // Ej: "sandwich-miga-jamon-y-queso" o "vaso-vidrio-v1"
-                variant.Sku = $"{product.Slug}{attributePart}".ToUpper();
+                // Si el administrador envió un SKU manual en el DTO, lo usamos.
+                if (!string.IsNullOrWhiteSpace(variant.Sku)) {
+                    variant.Sku = variant.Sku.Trim().ToUpper();
+                } else {
+                    var firstAttributeValue = variant.Attributes.Values.FirstOrDefault()?.ToString() ?? "";
+                    string attributePart = !string.IsNullOrEmpty(firstAttributeValue)
+                        ? $"-{GenerateSlug(firstAttributeValue)}"
+                        : $"-v{variantIndex}";
 
-                // Inicializamos los costos en 0 hasta que se registre la primera compra
-                variant.LastPurchasePrice = 0.00m;
-                variant.AverageCost = 0.00m;
+                    variant.Sku = $"{product.Slug}{attributePart}".ToUpper();
+                }
+
+                // La versión inicial obligatoria para concurrencia
+                variant.Version = 1;
+
+                // Resolución de prioridades automáticas si vienen en 0
+                if (variant.Priority == 0) {
+                    maxPriority++;
+                    variant.Priority = maxPriority;
+                }
 
                 variantIndex++;
             }
@@ -53,7 +67,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             return await GetByIdAsync(product.Id);
         }
 
-        // 2. REGISTRAR INGRESO DE MERCADERÍA (Fórmula de Costo Promedio Ponderado)
+        // 2. REGISTRAR INGRESO DE MERCADERÍA (Fórmula de Costo Promedio Ponderado + Concurrencia)
         public async Task<bool> RegisterStockEntryAsync(Guid variantId, int quantityReceived, decimal purchasePrice) {
             if (quantityReceived <= 0) {
                 throw new BadRequestException("La cantidad recibida debe ser mayor a 0.");
@@ -68,27 +82,29 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             int currentStock = variant.Stock;
             decimal currentAverageCost = variant.AverageCost;
 
-            // Actualizamos siempre el último precio de compra del proveedor
             variant.LastPurchasePrice = purchasePrice;
-
             int newTotalStock = currentStock + quantityReceived;
 
             if (newTotalStock > 0) {
-                // FÓRMULA: ((Stock Actual * Costo Promedio) + (Cantidad Nueva * Costo Nuevo)) / Stock Total
                 decimal newAverageCost = ((currentStock * currentAverageCost) + (quantityReceived * purchasePrice)) / newTotalStock;
                 variant.AverageCost = Math.Round(newAverageCost, 2);
             } else {
-                // Si por alguna razón el stock era negativo o cero y se neutraliza
                 variant.AverageCost = purchasePrice;
             }
 
-            // Sumamos el nuevo stock físico
             variant.Stock = newTotalStock;
 
-            return await _context.SaveChangesAsync() > 0;
+            // --- INCREMENTO SEGURO DE CONCURRENCIA ---
+            variant.Version++;
+
+            try {
+                return await _context.SaveChangesAsync() > 0;
+            } catch (DbUpdateConcurrencyException) {
+                throw new ConflictException("No se pudo registrar el ingreso. La variante fue modificada en simultáneo por otro proceso.");
+            }
         }
 
-        // 3. OBTENER TODOS PAGINADOS
+        // 3. OBTENER TODOS PAGINADOS (Ordenados por Prioridad de variante)
         public async Task<PagedResultDto<ProductResponseDto>> GetAllAsync(
                                                                     Guid? categoryId = null,
                                                                     Guid? brandId = null,
@@ -137,6 +153,10 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null) throw new NotFoundException("Producto no encontrado");
+
+            // Ordenamos las variantes por prioridad antes de mapear al DTO
+            product.Variants = product.Variants.OrderByDescending(v => v.Priority).ToList();
+
             return _mapper.Map<ProductResponseDto>(product);
         }
 
@@ -149,45 +169,43 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 .FirstOrDefaultAsync(p => p.Slug == slug);
 
             if (product == null) throw new NotFoundException("Producto no encontrado");
+
+            product.Variants = product.Variants.OrderByDescending(v => v.Priority).ToList();
+
             return _mapper.Map<ProductResponseDto>(product);
         }
 
         // 6. ACTUALIZAR DETALLES
         public async Task<ProductResponseDto?> UpdateAsync(Guid id, ProductUpdateDto request) {
-
             var product = await _context.Products
-            .Include(p => p.Variants)
-            .FirstOrDefaultAsync(p => p.Id == id);
+                .Include(p => p.Variants)
+                .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null) throw new NotFoundException($"El Producto con Id: '{id}' no se ha encontrado.");
-            // 1. Actualizamos los datos básicos del padre manualmente para no romper la colección de variantes
+
             product.Name = request.Name;
             product.Description = request.Description;
             product.CategoryId = request.CategoryId;
             product.BrandId = request.BrandId;
             product.UpdatedAt = DateTime.UtcNow;
             product.Slug = GenerateSlug(request.Name);
-            // Opcional si querés recalcular los SKUs de los hijos porque cambió el nombre/slug del padre:
+
             int variantIndex = 1;
-
             foreach (var variant in product.Variants) {
-
                 var firstAttributeValue = variant.Attributes.Values.FirstOrDefault()?.ToString() ?? "";
                 string attributePart = !string.IsNullOrEmpty(firstAttributeValue)
-                ? $"-{GenerateSlug(firstAttributeValue)}"
-                : $"-v{variantIndex}";
+                    ? $"-{GenerateSlug(firstAttributeValue)}"
+                    : $"-v{variantIndex}";
 
-                // Regeneramos el SKU basado en el nuevo nombre sin tocar sus costos o stocks reales
                 variant.Sku = $"{product.Slug}{attributePart}".ToUpper();
                 variantIndex++;
-
             }
+
             await _context.SaveChangesAsync();
             return await GetByIdAsync(id);
-
         }
 
-        // 7. ACTUALIZAR STOCK MANUAL (Se mantiene para ajustes/ventas de caja)
+        // 7. ACTUALIZAR STOCK MANUAL (Ajustes o ventas de caja resguardados)
         public async Task<bool> UpdateStockAsync(Guid variantId, int quantity) {
             var variant = await _context.ProductVariants.FindAsync(variantId);
             if (variant == null) throw new NotFoundException($"La variante con ID: '{variantId}' no fue encontrada");
@@ -198,12 +216,21 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                     $"Stock disponible: {variant.Stock}, solicitado: {Math.Abs(quantity)}."
                 );
             }
+
             variant.Stock += quantity;
-            return await _context.SaveChangesAsync() > 0;
+
+            // --- INCREMENTO SEGURO DE CONCURRENCIA ---
+            variant.Version++;
+
+            try {
+                return await _context.SaveChangesAsync() > 0;
+            } catch (DbUpdateConcurrencyException) {
+                throw new ConflictException("No se pudo modificar el stock. El producto está siendo afectado por otra transacción simultánea.");
+            }
         }
-        // 8. ACTUALIZAR VARIANTE (Precio, Atributos, Stock, etc.)
+
+        // 8. ACTUALIZAR VARIANTE (Edición del Panel Admin)
         public async Task<ProductVariantResponseDto> UpdateVariantAsync(Guid variantId, UpdateProductVariantRequestDto dto) {
-            // Buscamos la variante incluyendo a su producto padre (para poder armar el SKU si cambia algo)
             var variant = await _context.ProductVariants
                 .Include(v => v.Product)
                 .FirstOrDefaultAsync(v => v.Id == variantId);
@@ -212,26 +239,101 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 throw new NotFoundException($"La variante con ID: '{variantId}' no fue encontrada.");
             }
 
-            // 1. Actualizamos los campos permitidos
+            // Aplicamos los cambios directo del mapeo manual
             variant.Price = dto.Price;
             variant.CompareAtPrice = dto.CompareAtPrice;
             variant.LowStockThreshold = dto.LowStockThreshold;
             variant.Attributes = dto.Attributes;
             variant.IsActive = dto.IsActive;
 
-            // 2. Regeneramos su SKU automáticamente en base a sus nuevos atributos
-            var firstAttributeValue = variant.Attributes.Values.FirstOrDefault()?.ToString() ?? "";
-            string attributePart = !string.IsNullOrEmpty(firstAttributeValue)
-                ? $"-{GenerateSlug(firstAttributeValue)}"
-                : $"-v1";
+            // --- RESOLUCIÓN DE REGLAS DE NEGOCIO NUEVAS PARA ACTUALIZACIÓN ---
+            variant.IsFeatured = dto.IsFeatured ?? false;
 
-            variant.Sku = $"{variant.Product.Slug}{attributePart}".ToUpper();
+            if (dto.Priority.HasValue && dto.Priority.Value > 0) {
+                variant.Priority = dto.Priority.Value;
+            } else if (variant.Priority == 0) {
+                int maxPriority = await _context.ProductVariants.Select(v => (int?)v.Priority).MaxAsync() ?? 0;
+                variant.Priority = maxPriority + 1;
+            }
 
-            // 3. Guardamos en la Base de Datos
+            // VALIDACIÓN DE SKU OPCIONAL EN ACTUALIZACIÓN
+            if (!string.IsNullOrWhiteSpace(dto.Sku)) {
+                variant.Sku = dto.Sku.Trim().ToUpper();
+            } else {
+                var firstAttributeValue = variant.Attributes.Values.FirstOrDefault()?.ToString() ?? "";
+                string attributePart = !string.IsNullOrEmpty(firstAttributeValue)
+                    ? $"-{GenerateSlug(firstAttributeValue)}"
+                    : $"-v1";
+
+                variant.Sku = $"{variant.Product.Slug}{attributePart}".ToUpper();
+            }
+
+            // --- INCREMENTO SEGURO DE CONCURRENCIA ---
+            variant.Version++;
+
+            try {
+                await _context.SaveChangesAsync();
+                return _mapper.Map<ProductVariantResponseDto>(variant);
+            } catch (DbUpdateConcurrencyException) {
+                throw new ConflictException("El formulario de edición falló porque otro usuario guardó cambios en esta variante recientemente.");
+            }
+        }
+        // 10. AGREGAR VARIANTES A UN PRODUCTO EXISTENTE (Respetando PurchasePrice del DTO)
+        public async Task<ProductResponseDto> AddVariantsAsync(Guid productId, AddProductVariantsRequestDto request) {
+            var product = await _context.Products
+                .Include(p => p.Variants)
+                .FirstOrDefaultAsync(p => p.Id == productId);
+
+            if (product == null) {
+                throw new NotFoundException($"El Producto con Id: '{productId}' no existe.");
+            }
+
+            int? cachedMaxPriority = null;
+            int variantIndex = product.Variants.Count + 1;
+
+            foreach (var variantDto in request.Variants) {
+                // AutoMapper ya pasa automáticamente 'AverageCost' y 'LastPurchasePrice' mapeados desde 'PurchasePrice'
+                var newVariant = _mapper.Map<ProductVariantEntity>(variantDto);
+
+                newVariant.ProductId = productId;
+
+                // --- LÓGICA DE SKU ---
+                if (!string.IsNullOrWhiteSpace(newVariant.Sku)) {
+                    newVariant.Sku = newVariant.Sku.Trim().ToUpper();
+                } else {
+                    var firstAttributeValue = newVariant.Attributes.Values.FirstOrDefault()?.ToString() ?? "";
+                    string attributePart = !string.IsNullOrEmpty(firstAttributeValue)
+                        ? $"-{GenerateSlug(firstAttributeValue)}"
+                        : $"-v{variantIndex}";
+
+                    newVariant.Sku = $"{product.Slug}{attributePart}".ToUpper();
+                }
+
+                if (await _context.ProductVariants.AnyAsync(v => v.Sku == newVariant.Sku)) {
+                    throw new BadRequestException($"El SKU '{newVariant.Sku}' ya está registrado en otra variante.");
+                }
+
+                newVariant.Version = 1;
+                newVariant.IsActive = true;
+
+                // --- LÓGICA DE PRIORIDAD ---
+                if (newVariant.Priority == 0) {
+                    if (cachedMaxPriority == null) {
+                        cachedMaxPriority = await _context.ProductVariants
+                            .Select(v => (int?)v.Priority)
+                            .MaxAsync() ?? 0;
+                    }
+
+                    cachedMaxPriority++;
+                    newVariant.Priority = cachedMaxPriority.Value;
+                }
+
+                _context.ProductVariants.Add(newVariant);
+                variantIndex++;
+            }
+
             await _context.SaveChangesAsync();
-
-            // Retornamos la variante mapeada a su DTO de respuesta
-            return _mapper.Map<ProductVariantResponseDto>(variant);
+            return await GetByIdAsync(productId)!;
         }
 
         // 9. ELIMINAR

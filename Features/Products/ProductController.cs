@@ -1,7 +1,6 @@
 ﻿using LaCasitaDeMiga.Common.DTOs;
 using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Features.Products.Services;
-using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Products {
@@ -12,11 +11,10 @@ namespace LaCasitaDeMiga.Features.Products {
         private readonly IProductService _productService;
 
         public ProductController(IProductService productService) {
-            _productService = productService;
+            this._productService = productService;
         }
 
         // 1. OBTENER TODO (Paginado y Filtrado)
-        // GET: api/products?categoryId=...&brandId=...&pageNumber=1&pageSize=10
         [HttpGet]
         public async Task<ActionResult<PagedResultDto<ProductResponseDto>>> GetAll(
             [FromQuery] Guid? categoryId,
@@ -30,54 +28,54 @@ namespace LaCasitaDeMiga.Features.Products {
         }
 
         // 2. OBTENER POR ID
-        // GET: api/products/id/3fa85f64-5717-4562-b3fc-2c963f66afa6
-        [HttpGet("id/{id:guid}")]
+        [HttpGet("id/{id:guid}", Name = "GetProductById")]
         public async Task<ActionResult<ProductResponseDto>> GetById(Guid id) {
-            // Nota: GetByIdAsync ya lanza NotFoundException si no existe, 
-            // por lo que el middleware responderá un 404 automáticamente.
             var product = await _productService.GetByIdAsync(id);
             return Ok(product);
         }
 
-        // 3. OBTENER POR SLUG (Ideal para el Frontend de la tienda)
-        // GET: api/products/slug/remera-oversize-negra
+        // 3. OBTENER POR SLUG
         [HttpGet("slug/{slug}")]
         public async Task<ActionResult<ProductResponseDto>> GetBySlug(string slug) {
             var product = await _productService.GetBySlugAsync(slug);
             return Ok(product);
         }
 
-        // 4. CREAR PRODUCTO Y VARIANTES
-        // POST: api/products
+        // 4. CREAR PRODUCTO Y VARIANTES INICIALES
         [HttpPost]
         public async Task<ActionResult<ProductResponseDto>> Create([FromBody] ProducCreatetRequestDto request) {
-            // .NET valida automáticamente las anotaciones como [Required] y [MinLength] 
-            // gracias al atributo [ApiController] de la clase.
             var createdProduct = await _productService.CreateAsync(request);
-
-            // Buena práctica REST: Devolver un 201 Created con la cabecera Location apuntando al GetById
-            return Ok(createdProduct);
+            // Estándar REST profesional: Devuelve Estado 210 Created y la URL de acceso directo en las cabeceras
+            return CreatedAtRoute("GetProductById", new { id = createdProduct.Id }, createdProduct);
         }
 
-        // 5. ACTUALIZAR PRODUCTO (Padre e hijos)
-        // PUT: api/products/3fa85f64-5717-4562-b3fc-2c963f66afa6
+        // 5. ACTUALIZAR PRODUCTO (Campos generales del Padre)
         [HttpPut("{id:guid}")]
         public async Task<ActionResult<ProductResponseDto>> Update(Guid id, [FromBody] ProductUpdateDto request) {
             var updatedProduct = await _productService.UpdateAsync(id, request);
             return Ok(updatedProduct);
         }
 
-        // 6. BORRADO FISICO / LOGICO
-        // DELETE: api/products/3fa85f64-5717-4562-b3fc-2c963f66afa6
+        // 6. ELIMINAR PRODUCTO (Y variantes asociadas)
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> Delete(Guid id) {
             await _productService.DeleteAsync(id);
-            return NoContent(); // 204 No Content (Estándar REST para borrados exitosos)
+            return NoContent();
         }
 
-        // 7. ACTUALIZAR STOCK DE UNA VARIANTE
-        // POST: api/products/variants/3fa85f64-5717-4562-b3fc-2c963f66afa6/stock
-        [HttpPut("variants/{variantId:guid}/stock")] // ◄ CAMBIADO
+        // 7. [NUEVO] AGREGAR NUEVAS VARIANTES A UN PRODUCTO EXISTENTE
+        // POST: api/products/{id}/variants
+        [HttpPost("{id:guid}/variants")]
+        public async Task<IActionResult> AddVariants(Guid id, [FromBody] AddProductVariantsRequestDto dto) {
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+
+            var updatedProduct = await _productService.AddVariantsAsync(id, dto);
+            return Ok(updatedProduct);
+        }
+
+        // 8. CORREGIDO A POST: ACTUALIZAR STOCK DE UNA VARIANTE (Ajustes manuales acumulativos)
+        // POST: api/products/variants/{variantId}/stock
+        [HttpPost("variants/{variantId:guid}/stock")]
         public async Task<IActionResult> UpdateStock(Guid variantId, [FromBody] int quantity) {
             var success = await _productService.UpdateStockAsync(variantId, quantity);
 
@@ -85,13 +83,12 @@ namespace LaCasitaDeMiga.Features.Products {
                 return BadRequest(new { message = "No se pudo impactar el cambio de stock en la base de datos." });
             }
 
-            return Ok(new { message = "Stock actualizado correctamente." });
+            return Ok(new { message = "Stock ajustado correctamente." });
         }
 
-
-        // 8. NUEVO: REGISTRAR INGRESO DE STOCK PROVEEDOR (Calcular Costo Promedio)
-        // POST: api/products/variants/3fa85f64-5717-4562-b3fc-2c963f66afa6/stock-entry
-        [HttpPut("variants/{variantId:guid}/stock-entry")] 
+        // 9. CORREGIDO A POST: REGISTRAR INGRESO DE STOCK PROVEEDOR (Costo Promedio Ponderado)
+        // POST: api/products/variants/{variantId}/stock-entry
+        [HttpPost("variants/{variantId:guid}/stock-entry")]
         public async Task<IActionResult> RegisterStockEntry(Guid variantId, [FromBody] StockEntryRequestDto request) {
             var success = await _productService.RegisterStockEntryAsync(
                 variantId,
@@ -106,7 +103,9 @@ namespace LaCasitaDeMiga.Features.Products {
             return Ok(new { message = "Ingreso de stock registrado y costo promedio recalculado con éxito." });
         }
 
-        [HttpPut("variants/{variantId}")]
+        // 10. ACTUALIZAR DETALLES DE UNA VARIANTE ESPECÍFICA (Precios, atributos, etc.)
+        // PUT: api/products/variants/{variantId}
+        [HttpPut("variants/{variantId:guid}")]
         public async Task<ActionResult<ProductVariantResponseDto>> UpdateVariant(
             Guid variantId,
             [FromBody] UpdateProductVariantRequestDto dto) {

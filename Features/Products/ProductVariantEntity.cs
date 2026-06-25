@@ -8,14 +8,21 @@
         public decimal Price { get; set; }
         public decimal? CompareAtPrice { get; set; } // Opcional (null), para precios de oferta
 
-        // 2. NUEVO: Precio de Compra (Última factura de proveedor)
+        // 2. : Precio de Compra (Última factura de proveedor)
         public decimal LastPurchasePrice { get; set; } = 0.00m;
 
-        // 3. NUEVO: Precio Promedio (Costo Ponderado para Ganancias)
+        // 3. : Precio Promedio (Costo Ponderado para Ganancias)
         public decimal AverageCost { get; set; } = 0.00m;
 
         public int Stock { get; set; }
         public int LowStockThreshold { get; set; } = 3;
+        
+        //  Campos de Control y Visualización
+        public int Priority { get; set; } = 0;
+        public bool IsFeatured { get; set; } = false;
+
+        // Campo para evitar actualizaciones fantasmas (Concurrencia Optimista)
+        public int Version { get; set; } = 1;
 
         // La clave para el dinamismo total de cualquier rubro (JSONB)
         public Dictionary<string, object> Attributes { get; set; } = new Dictionary<string, object>();

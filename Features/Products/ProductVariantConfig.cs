@@ -19,6 +19,23 @@ namespace LaCasitaDeMiga.Features.Products {
                 .HasMaxLength(50)
                 .IsRequired();
 
+            // 3. SERIALIZACIÓN JSONB
+            builder.Property(v => v.Attributes)
+                .HasColumnName("attributes")
+                .HasColumnType("jsonb")
+                .HasConversion(
+                    v => JsonSerializer.Serialize(v, (JsonSerializerOptions)null!),
+                    v => JsonSerializer.Deserialize<Dictionary<string, object>>(v, (JsonSerializerOptions)null!)
+                         ?? new Dictionary<string, object>()
+                )
+                .HasDefaultValueSql("'{}'::jsonb")
+                // ◄ ¡AGREGÁ ESTO ACÁ ABAJO para sacar la advertencia!
+                .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<Dictionary<string, object>>(
+                    (c1, c2) => JsonSerializer.Serialize(c1, (JsonSerializerOptions)null!) == JsonSerializer.Serialize(c2, (JsonSerializerOptions)null!),
+                    c => c == null ? 0 : JsonSerializer.Serialize(c, (JsonSerializerOptions)null!).GetHashCode(),
+                    c => JsonSerializer.Deserialize<Dictionary<string, object>>(JsonSerializer.Serialize(c, (JsonSerializerOptions)null!), (JsonSerializerOptions)null!)!
+                ));
+
             // Mapeo correcto para dinero (numeric en BD -> decimal en C#)
             builder.Property(v => v.Price)
                 .HasColumnName("price")
@@ -29,7 +46,7 @@ namespace LaCasitaDeMiga.Features.Products {
                 .HasColumnName("compare_at_price")
                 .HasColumnType("numeric(12,2)");
 
-            // --- NUEVOS MAPEOS PARA COSTOS ---
+            // --- MAPEOS PARA COSTOS ---
             builder.Property(v => v.LastPurchasePrice)
                 .HasColumnName("last_purchase_price")
                 .HasColumnType("numeric(12,2)")
@@ -41,7 +58,22 @@ namespace LaCasitaDeMiga.Features.Products {
                 .HasColumnType("numeric(12,2)")
                 .HasDefaultValue(0.00m)
                 .IsRequired();
-            // ─────────────────────────────────
+
+            // --- NUEVOS MAPEOS: PRIORIDAD Y DESTACADO ---
+            builder.Property(v => v.Priority)
+                .HasColumnName("priority")
+                .HasDefaultValue(0)
+                .IsRequired();
+
+            builder.Property(v => v.IsFeatured)
+                .HasColumnName("is_featured")
+                .HasDefaultValue(false)
+                .IsRequired();
+            // ───────────────────────────────────────────
+            builder.Property(v => v.Version)
+                .HasColumnName("version")
+                .HasDefaultValue(1)
+                .IsConcurrencyToken(); // <--- CRÍTICO: Activa la protección de EF Core
 
             builder.Property(v => v.Stock)
                 .HasColumnName("stock")

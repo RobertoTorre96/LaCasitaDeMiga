@@ -23,7 +23,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
         Task<bool> RegisterStockEntryAsync(Guid variantId, int quantityReceived, decimal purchasePrice);
         // ──────────────────────────────
         Task<ProductVariantResponseDto> UpdateVariantAsync(Guid variantId, UpdateProductVariantRequestDto dto);
-
+        Task<ProductResponseDto> AddVariantsAsync(Guid productId, AddProductVariantsRequestDto request);
         Task<bool> DeleteAsync(Guid id);
     }
 }
