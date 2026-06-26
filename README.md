@@ -38,7 +38,7 @@ El sistema se encuentra configurado con integración continua y desplegado en en
 * **Base de Datos:** PostgreSQL (Neon Serverless con soporte nativo JSONB)
 * **ORM:** Entity Framework Core (Code-First)
 * **Identidad & Seguridad:** JWT (JSON Web Tokens), BCrypt, e integración con Google OAuth (IdToken)
-* **Comunicaciones & Errores:** HttpClient Factory (Integración con API REST de Brevo para Emails) y control global de excepciones bajo el estándar industrial **RFC 7807 (Problem Details)**.
+* **Comunicaciones & Errores:** HttpClient Factory (Integración con API REST de Brevo para Emails) y control global de excepciones.
 
 ---
 
