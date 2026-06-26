@@ -1,6 +1,6 @@
 # La Casita de Miga - Backend API 🥐📊
 
-API REST robusta y escalable desarrollada en **.NET 9 (C#)** y desplegada en la nube a través de **Render**, utilizando **Neon Database (PostgreSQL Serverless)** como motor de persistencia. El proyecto adopta un enfoque moderno *Cloud-Native* para el sector gastronómico/retail, resolviendo problemas reales de negocio, lógica financiera e inventario.
+API REST robusta y escalable desarrollada en **.NET 9 (C#)**, completamente **dockerizada** y desplegada en la nube a través de **Render**, utilizando **Neon Database (PostgreSQL Serverless)** como motor de persistencia. El proyecto adopta un enfoque moderno *Cloud-Native* para el sector gastronómico/retail, resolviendo problemas reales de negocio, lógica financiera e inventario.
 
 ---
 
@@ -9,7 +9,7 @@ API REST robusta y escalable desarrollada en **.NET 9 (C#)** y desplegada en la 
 El sistema se encuentra configurado con integración continua y desplegado en entornos productivos de acceso público:
 
 * **API Backend & Panel de Pruebas:** 🛠️ [Explorar Endpoints (Swagger UI)](https://lacasitademiga.onrender.com/swagger/index.html)
-* **Hosting de Servicios:** Contenedor administrado y desplegado de forma eficiente en **Render** 🚀
+* **Hosting de Servicios:** Contenedor administrado, construido mediante **Dockerfile** y desplegado en **Render** 🚀
 * **Base de Datos:** Motor PostgreSQL alojado en la nube de forma serverless en **Neon Database** 🐘
 
 ---
@@ -26,6 +26,7 @@ El sistema se encuentra configurado con integración continua y desplegado en en
 
 * **Vertical Slice Architecture (Componentes Verticales):** El código se organiza por funcionalidades autónomas (`Users`, `Products`, `Orders`, etc.) en lugar de capas rígidas tradicionales. Esto maximiza la cohesión y facilita el mantenimiento.
 * **Estructura de Datos Dinámica:** Manejo de variantes de productos (ej: sabores, tamaños) mediante diccionarios en C# serializados transparentemente en columnas **JSONB** de PostgreSQL.
+* **Contenedores & DevOps (Dockerfile):** Incluye configuración de **Docker** para garantizar la portabilidad absoluta del sistema, facilitando que corra idénticamente en desarrollo local o en orquestadores de la nube.
 * **Estrategia Cloud-Native (Render + Neon):** Configuración automatizada de puertos mediante variables de entorno e inicialización con **Auto-Migraciones** en el arranque del contenedor, garantizando despliegues continuos sin intervención manual.
 
 ---
@@ -33,6 +34,7 @@ El sistema se encuentra configurado con integración continua y desplegado en en
 ## 🛠️ Stack Tecnológico
 
 * **Lenguaje & Framework:** .NET 9 / C#
+* **Contenedores:** Docker (Dockerfile multi-stage optimizado)
 * **Base de Datos:** PostgreSQL (Neon Serverless con soporte nativo JSONB)
 * **ORM:** Entity Framework Core (Code-First)
 * **Identidad & Seguridad:** JWT (JSON Web Tokens), BCrypt, e integración con Google OAuth (IdToken)
