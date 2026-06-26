@@ -33,7 +33,7 @@ El sistema se encuentra configurado con integración continua y desplegado en en
 
 ## 🛠️ Stack Tecnológico
 
-* **Lenguaje & Framework:** .NET 9 / C#
+* **Lenguaje & Framework:** .NET 8 / C#
 * **Contenedores:** Docker (Dockerfile multi-stage optimizado)
 * **Base de Datos:** PostgreSQL (Neon Serverless con soporte nativo JSONB)
 * **ORM:** Entity Framework Core (Code-First)
