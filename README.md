@@ -57,4 +57,4 @@ Proveer las siguientes claves en el entorno de producción de Render:
 * **LinkedIn:** [linkedin.com/in/torre-roberto](https://www.linkedin.com/in/torre-roberto)
 * **Correo Electrónico:** torreroberto1996@gmail.com
 * **Teléfono/WhatsApp:** [+54 9 11 6249-1310](https://wa.me/5491162491310)
-* **GitHub:** [github.com/tu-usuario](https://github.com/RobertoTorre96?tab=repositories) 📂 *(¡Te invito a explorar mis otros repositorios!)*
+* **GitHub:** [github.com/RobertoTorre96](https://github.com/RobertoTorre96?tab=repositories) 📂 *(¡Te invito a explorar mis otros repositorios!)*
