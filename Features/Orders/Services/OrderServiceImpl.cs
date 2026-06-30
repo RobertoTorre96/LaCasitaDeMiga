@@ -4,18 +4,26 @@ using LaCasitaDeMiga.Features.Orders.DTOs;
 using LaCasitaDeMiga.Features.Products.Services;
 using LaCasitaDeMiga.Data;
 using Microsoft.EntityFrameworkCore;
+using LaCasitaDeMiga.Features.Users.services;
+using LaCasitaDeMiga.Features.Common.services.MailService;
+using LaCasitaDeMiga.Features.Common.services.MailService.Enums;
 
 namespace LaCasitaDeMiga.Features.Orders.Services {
     public class OrderServiceImpl : IOrderService {
         private readonly ApplicationDbContext _context;
         private readonly IProductService _productService;
+        private readonly IEmailTemplateService _emailService;
+
         private readonly IMapper _mapper;
 
-        public OrderServiceImpl(ApplicationDbContext context, IProductService productService, IMapper mapper) {
+        public OrderServiceImpl(ApplicationDbContext context, IProductService productService,
+                                IMapper mapper, IUserService userService, IEmailTemplateService emailService) {
             _context = context;
             _productService = productService;
             _mapper = mapper;
+            _emailService = emailService;
         }
+
 
         // 1. EL CHECKOUT (CREAR ORDEN CON TRANSACCIÓN Y CONGELACIÓN DE COSTOS)
         public async Task<OrderResponseDto> CreateOrderAsync(OrderRequestDto request) {
@@ -89,6 +97,65 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
             }
         }
 
+        //borrar para github recluter
+        public async Task<OrderResponseDto> CreateOrderAsync(ComboEspecialDTO request) {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try {
+                var order = new OrderEntity {
+                    CustomerId = request.CustomerId,
+                    Status = EOrderStatus.Pending,
+                    TotalAmount = request.TotalAmount,
+                    CreatedAt = DateTime.UtcNow // ◄ ¡ERROR AQUÍ!
+                };
+
+                // ID genérico para productos no registrados que creaste en tu BD
+                Guid variantEspecialGenericaId = Guid.Parse("99999999-9999-9999-9999-999999999999");
+
+                // 1. Agregar el detalle de los sándwiches comunes (si hay)
+                if (request.CantComunes > 0) {
+                    order.Items.Add(new OrderItemEntity {
+                        ProductVariantId = variantEspecialGenericaId,
+                        Quantity = request.CantComunes,
+                        UnitPrice = request.PriceComunes,
+                        UnitCost = 0 // Al no estar registrado, el costo es 0 o lo que estimes
+                                     // Si tu OrderItem tiene un campo 'Notes' o 'Description', podrías guardar: "Sándwiches Comunes Manuales"
+                    });
+                }
+
+                // 2. Agregar el detalle de los sándwiches especiales (si hay)
+                if (request.CantEspeciales > 0) {
+                    order.Items.Add(new OrderItemEntity {
+                        ProductVariantId = variantEspecialGenericaId,
+                        Quantity = request.CantEspeciales,
+                        UnitPrice = request.PriceEspeciales,
+                        UnitCost = 0
+                    });
+                }
+
+                // Guardamos todo junto (Cabecera + Detalles Genéricos)
+                _context.Orders.Add(order);
+                await _context.SaveChangesAsync();
+
+                await transaction.CommitAsync();
+
+                // Rehidratamos para que el AutoMapper no falle buscando las relaciones
+                var fullOrder = await _context.Orders
+                    .Include(o => o.Items)
+                        .ThenInclude(i => i.ProductVariant)
+                            .ThenInclude(v => v.Product)
+                    .FirstAsync(o => o.Id == order.Id);
+
+                return _mapper.Map<OrderResponseDto>(fullOrder);
+
+            } catch (Exception) {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+
+
         // 2. OBTENER POR ID
         public async Task<OrderResponseDto> GetByIdAsync(Guid id) {
             var order = await _context.Orders
@@ -139,6 +206,53 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
             await _context.SaveChangesAsync();
 
             return await GetByIdAsync(orderId);
+        }
+
+        public async Task SendOrderConfirmationEmailAsync(OrderResponseDto order) {
+            // 1. Buscamos si el usuario existe en Neon
+            var user = await _context.Users.FindAsync(order.CustomerId);
+
+            // Por seguridad, si el usuario no existe, no le avisamos al front (evita que husmeen emails válidos)
+            if (user == null) throw new NotFoundException($"El usuario con ID {order.CustomerId} no fue encontrado.");
+
+            var emailParams = new {
+
+                ORDER_ID = order.Id.ToString(),
+                ORDER_DATE = order.CreatedAt.ToString("dd/MM/yyyy"),
+                ITEMS = order.Items,
+                TOTAL = order.TotalAmount,
+
+                USER_NAME = user.Name
+            };
+
+            await _emailService.SendTemplateEmailAsync(user.Email, EEmailTemplate.SEND_ORDER_CONFIRMATION, emailParams);
+        }
+
+
+        //borrar para github recluter
+        public async Task SendOrderConfirmationEmailAsync(ComboEspecialDTO order) {
+            var user = await _context.Users.FindAsync(order.CustomerId);
+
+            if (user == null) throw new NotFoundException($"El usuario con ID {order.CustomerId} no fue encontrado.");
+
+            var emailParams = new {
+
+                ORDER_ID = order.Id.ToString(),
+                ORDER_DATE = order.CreatedAt.ToString("dd/MM/yyyy"),
+                CANT_COMUNES = order.CantComunes,
+                PRICE_COMUNES = order.PriceComunes,
+                SUBTOTAL_COMUNES= order.SubTotalComunes,
+
+                CANT_ESPECIALES = order.CantEspeciales,
+                PRICE_ESPECIALES = order.PriceEspeciales,
+                SUBTOTAL_ESPECIALES= order.SubTotalEspeciales,
+
+                TOTAL = order.TotalAmount,
+
+                USER_NAME = user.Name
+            };
+            await _emailService.SendTemplateEmailAsync(user.Email, EEmailTemplate.SEND_ORDER_ESPECIAL_CONFIRMATION, emailParams);
+
         }
     }
 }

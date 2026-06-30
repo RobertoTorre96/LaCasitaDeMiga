@@ -9,5 +9,8 @@ namespace LaCasitaDeMiga.Features.Users.DTOs {
         [Required(ErrorMessage = "El rol es obligatorio.")]
         [EnumDataType(typeof(UserRole), ErrorMessage = "El rol ingresado no es un rol válido para el sistema.")]
         public UserRole Role { get; set; }
+
+        [Phone(ErrorMessage = "El formato del teléfono no es válido.")] // 💡 ¡Agregado acá!
+        public string? PhoneNumber { get; set; }
     }
 }

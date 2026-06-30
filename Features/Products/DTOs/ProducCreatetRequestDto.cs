@@ -4,13 +4,13 @@ namespace LaCasitaDeMiga.Features.Products.DTOs {
     public class ProducCreatetRequestDto {
         [Required(ErrorMessage = "El nombre del producto es obligatorio.")]
         [StringLength(150, ErrorMessage = "El nombre no puede superar los 150 caracteres.")]
-        public string Name { get; set; } = null!;
+        public string Name { get; set; } = null!;///combo jq
 
         [Required(ErrorMessage = "La descripción es obligatorio.")]
         public string Description { get; set; } = null!;
 
         [Required(ErrorMessage = "La categoría es obligatoria.")]
-        public Guid CategoryId { get; set; }
+        public Guid CategoryId { get; set; } // triple
 
         // Opcional, ya que tu DDL permite que un producto no tenga marca (NULL)
         public Guid? BrandId { get; set; }

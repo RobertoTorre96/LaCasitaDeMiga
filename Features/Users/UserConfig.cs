@@ -29,6 +29,12 @@ namespace LaCasitaDeMiga.Features.Users {
             builder.Property(u => u.PasswordHash)
                 .HasColumnName("password_hash");
 
+            builder.Property(u => u.PhoneNumber) // 💡 ¡Agregado acá!
+                .HasColumnName("phone_number")
+                .HasMaxLength(20) // Longitud prudente para teléfonos
+                .IsRequired(false);
+
+
             builder.Property(u => u.Role)
                  .HasColumnName("role")
                  .IsRequired()

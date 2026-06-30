@@ -1,9 +1,11 @@
 ﻿using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using Google.Apis.Auth;
 using LaCasitaDeMiga.Common.DTOs;
 using LaCasitaDeMiga.Data;
 using LaCasitaDeMiga.Exceptions;
 using LaCasitaDeMiga.Features.Common.services.MailService;
+using LaCasitaDeMiga.Features.Common.services.MailService.Enums;
 using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Features.Users.DTOs;
 using LaCasitaDeMiga.Features.Users.role;
@@ -18,9 +20,11 @@ namespace LaCasitaDeMiga.Features.Users.services {
         private readonly ApplicationDbContext _context;
         private readonly IConfiguration _configuration;
         private readonly IMapper _mapper;
-        private readonly IEmailService _emailService; // 💡 Inyección agregada
+        //private readonly IEmailService _emailService; // 💡 Inyección agregada
+        private readonly IEmailTemplateService _emailService; // 💡 Inyección agregada
 
-        public UserServiceImpl(ApplicationDbContext context, IConfiguration configuration, IMapper mapper,IEmailService emailService) {
+
+        public UserServiceImpl(ApplicationDbContext context, IConfiguration configuration, IMapper mapper, IEmailTemplateService emailService) {
             _context = context;
             _configuration = configuration;
             _mapper = mapper;
@@ -72,6 +76,7 @@ namespace LaCasitaDeMiga.Features.Users.services {
                 Id = Guid.NewGuid(),
                 Email = request.Email,
                 Name = request.Name,
+                PhoneNumber = request.PhoneNumber,
                 PasswordHash = passwordHash,
                 Role = UserRole.Customer, // 💡 Cambiado a Enum,
                 IsActive = true,
@@ -134,13 +139,13 @@ namespace LaCasitaDeMiga.Features.Users.services {
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
+                .ProjectTo<UserResponseDto>(_mapper.ConfigurationProvider)  
                 .ToListAsync();
 
 
-            var mappedItems = _mapper.Map<IEnumerable<UserResponseDto>>(users);
 
             return new PagedResultDto<UserResponseDto> {
-                Items = mappedItems,
+                Items = users,
                 TotalItems = totalItems,
                 PageNumber = pageNumber,
                 PageSize = pageSize
@@ -204,21 +209,15 @@ namespace LaCasitaDeMiga.Features.Users.services {
             var frontendUrl = _configuration["Urls:Frontend"] ?? "http://localhost:5173";
             string resetLink = $"{frontendUrl}/reset-password?token={token}";
 
-            // 5. Diseñamos el cuerpo del Mail en HTML lindo
-            string subject = "Restablecer contraseña - La Casita de Miga";
-            string body = $@"
-        <div style='font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #eee; border-radius: 5px;'>
-            <h2 style='color: #d9534f; text-align: center;'>La Casita de Miga</h2>
-            <p>Hola, <strong>{user.Name}</strong>,</p>
-            <p>Recibimos una solicitud para restablecer la contraseña de tu cuenta. Para continuar, haz clic en el siguiente botón:</p>
-            <div style='text-align: center; margin: 30px 0;'>
-                <a href='{resetLink}' style='background-color: #d9534f; color: white; padding: 12px 25px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block;'>Restablecer Contraseña</a>
-            </div>
-            <p style='color: #777; font-size: 12px;'>Este enlace expirará en 15 minutos. Si no solicitaste este cambio, puedes ignorar este correo de forma segura.</p>
-        </div>";
+            var emailParams = new {
+                USER_NAME = user.Name,
+                RESET_LINK = resetLink
+            };
+
+
 
             // 6. Despachamos el correo usando MailKit
-            await _emailService.SendEmailAsync(user.Email, subject, body);
+            await _emailService.SendTemplateEmailAsync(user.Email, EEmailTemplate.FORGOT_EMAIL, emailParams);
         }
 
         public List<string> GetAvailableRoles() {

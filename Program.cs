@@ -56,7 +56,7 @@ builder.Services.AddScoped<IOrderService, OrderServiceImpl>();
 builder.Services.AddScoped<IProductService, ProductServiceImpl>();
 builder.Services.AddScoped<IUserService, UserServiceImpl>();
 builder.Services.AddScoped<IDashboardService, DashboardServiceImpl>();
-builder.Services.AddScoped<IEmailService, EmailServiceImpl>();
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateServiceImpl>();//nuevo
 
 // --- MANEJO GLOBAL DE EXCEPCIONES ---
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();

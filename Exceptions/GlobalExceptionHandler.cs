@@ -19,6 +19,7 @@ namespace LaCasitaDeMiga.Exceptions {
                 AlreadyExistsException => (StatusCodes.Status409Conflict, "Conflicto: El recurso ya existe"),
                 ValidationException => (StatusCodes.Status400BadRequest, "Error de validación"),
                 BadRequestException => (StatusCodes.Status400BadRequest, "Solicitud incorrecta"),
+                UnauthorizedAccessException => (StatusCodes.Status401Unauthorized, "No autorizado"),
 
                 // Cualquier otro error no controlado (como fallos de Postgres/Docker) cae aquí
                 _ => (StatusCodes.Status500InternalServerError, "Error interno del servidor")

@@ -5,9 +5,10 @@ namespace LaCasitaDeMiga.Features.Users {
         public Guid Id { get; set; } = Guid.NewGuid();
         public string Email { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
+        public string? PhoneNumber { get; set; }
         public string? PictureUrl { get; set; }
         public string? PasswordHash { get; set; }
-        public bool IsActive { get; set; } = true; // 💡 ¡Agregado acá!
+        public bool IsActive { get; set; } = true; 
         public UserRole Role { get; set; } = UserRole.Customer;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public string? PasswordResetToken { get; set; }
