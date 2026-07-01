@@ -1,0 +1,8 @@
+# Ignorar carpetas de compilación local
+[Bb]in/
+[Oo]bj/
+.vs/
+.vscode/
+
+# IGNORAR CONFIGURACIONES LOCALES (Para que no se suban tus contraseñas)
+appsettings.Development.json

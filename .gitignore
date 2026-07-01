@@ -1,8 +1,13 @@
-# Ignorar carpetas de compilación local
-[Bb]in/
-[Oo]bj/
+# Ignorar carpetas de compilación en cualquier nivel del proyecto
+**/[Bb]in/
+**/[Oo]bj/
 .vs/
 .vscode/
 
-# IGNORAR CONFIGURACIONES LOCALES (Para que no se suban tus contraseñas)
-appsettings.Development.json
+# IGNORAR CONFIGURACIONES LOCALES CON CONTRASEÑAS (Fuerza el rastreo en subcarpetas)
+**/appsettings.Development.json
+**/appsettings.Local.json
+
+# Archivos temporales de usuario de Visual Studio
+*.user
+*.suo
