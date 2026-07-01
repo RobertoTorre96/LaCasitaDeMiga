@@ -1,6 +1,6 @@
 # La Casita de Miga - Backend API 🥐📊
 
-API REST robusta y escalable desarrollada en **.NET 9 (C#)**, completamente **dockerizada** y desplegada en la nube a través de **Render**, utilizando **Neon Database (PostgreSQL Serverless)** como motor de persistencia. El proyecto adopta un enfoque moderno *Cloud-Native* para el sector gastronómico/retail, resolviendo problemas reales de negocio, lógica financiera e inventario.
+API REST robusta y escalable desarrollada en **.NET 8 (C#)**, completamente **dockerizada** y desplegada en la nube a través de **Render**, utilizando **Neon Database (PostgreSQL Serverless)** como motor de persistencia. El proyecto adopta un enfoque moderno *Cloud-Native* para el sector gastronómico/retail, resolviendo problemas reales de negocio, lógica financiera e inventario.
 
 ---
 
