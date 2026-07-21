@@ -7,8 +7,10 @@ using LaCasitaDeMiga.Features.DashBoard.Services;
 using LaCasitaDeMiga.Features.Delivery.services;
 using LaCasitaDeMiga.Features.GoogleGeoCoding.Services;
 using LaCasitaDeMiga.Features.Orders.Services;
+using LaCasitaDeMiga.Features.Payments.Services;
 using LaCasitaDeMiga.Features.Products.Services;
 using LaCasitaDeMiga.Features.Users.services;
+using MercadoPago.Config;
 using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -19,7 +21,9 @@ var connectionString = builder.Configuration.GetConnectionString("PostgresConnec
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(connectionString));
 
-// --------------------------------------
+
+// --- CONFIGURACIÓN DE MERCADO PAGO ---
+MercadoPagoConfig.AccessToken = builder.Configuration["MercadoPago:AccessToken"];
 
 // --- CONFIGURACIÓN DE CORS ---
 builder.Services.AddCors(options => {
@@ -56,7 +60,9 @@ builder.Services.AddScoped<IOrderService, OrderServiceImpl>();
 builder.Services.AddScoped<IProductService, ProductServiceImpl>();
 builder.Services.AddScoped<IUserService, UserServiceImpl>();
 builder.Services.AddScoped<IDashboardService, DashboardServiceImpl>();
-builder.Services.AddScoped<IEmailTemplateService, EmailTemplateServiceImpl>();//nuevo
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateServiceImpl>();
+builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>(); // ◄ nueva línea
+
 
 // --- MANEJO GLOBAL DE EXCEPCIONES ---
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
@@ -67,7 +73,12 @@ builder.Services.AddProblemDetails();
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 builder.WebHost.UseUrls($"http://*:{port}");
 
+
+
 var app = builder.Build();
+
+
+
 
 // --- PIPELINE DE SOLICITUDES HTTP (MIDDLEWARES) ---
 app.UseExceptionHandler();
