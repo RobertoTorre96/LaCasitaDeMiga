@@ -15,6 +15,12 @@ using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// ✅ Desactiva el buffering para que Render reciba los logs en tiempo real
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole(options => {
+    options.LogToStandardErrorThreshold = LogLevel.Warning;
+});
+
 // --- CONFIGURACIÓN DE BASE DE DATOS ---
 // Lee automáticamente de appsettings.json en local y de las Variables de Entorno en Railway/Render
 var connectionString = builder.Configuration.GetConnectionString("PostgresConnection");

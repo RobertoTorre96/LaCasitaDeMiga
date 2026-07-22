@@ -28,10 +28,22 @@ namespace LaCasitaDeMiga.Exceptions {
             // 2. LOGGEO INTELIGENTE: Decidimos qué nivel de log usar según el código de estado
             if (statusCode == StatusCodes.Status500InternalServerError) {
                 // Si es un error 500, SÍ queremos ver todo el desastre y el Stack Trace en consola
-                _logger.LogError(exception, "CRÍTICO: Ocurrió una excepción no controlada en el servidor: {Message}", exception.Message);
+                _logger.LogError(
+                        exception,
+                        "❌ [CRÍTICO 500] Error en {Method} {Path} | Detalle: {Message}",
+                        httpContext.Request.Method,
+                        httpContext.Request.Path,
+                        exception.Message
+                    );
             } else {
                 // Si es un 404, 400, etc., solo registramos una advertencia (Warning) limpia de una sola línea
-                _logger.LogWarning("Controlado ({StatusCode}): {Message}", statusCode, exception.Message);
+                _logger.LogWarning(
+                        "⚠️ [CONTROLADO {StatusCode}] {Method} {Path} | {Message}",
+                        statusCode,
+                        httpContext.Request.Method,
+                        httpContext.Request.Path,
+                        exception.Message
+                    );
             }
 
             // 3. Armamos el formato estándar ProblemDetails protegiendo mensajes del sistema (Error 500)
