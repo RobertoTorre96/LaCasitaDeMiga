@@ -7,7 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Users.Controllers {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/user")]
     public class UserController :ControllerBase{
 
         private readonly IUserService _userService;

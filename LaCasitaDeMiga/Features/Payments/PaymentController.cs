@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Payments {
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/payment")]
     public class PaymentController : ControllerBase {
 
         private readonly IPaymentService _paymentService;

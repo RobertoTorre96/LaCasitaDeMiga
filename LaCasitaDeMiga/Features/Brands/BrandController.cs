@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Brands {
     [ApiController]
-    [Route("api/Brands")]
+    [Route("api/brands")]
     public class BrandController :ControllerBase{
         private readonly IBrandService _brandService;
 
