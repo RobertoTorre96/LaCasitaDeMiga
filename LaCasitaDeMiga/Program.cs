@@ -2,6 +2,7 @@ using LaCasitaDeMiga.Data;
 using LaCasitaDeMiga.Exceptions;
 using LaCasitaDeMiga.Features.Brands.Services;
 using LaCasitaDeMiga.Features.Categories.Services;
+using LaCasitaDeMiga.Features.Common.Cache.services;
 using LaCasitaDeMiga.Features.Common.services.MailService;
 using LaCasitaDeMiga.Features.DashBoard.Services;
 using LaCasitaDeMiga.Features.Delivery.services;
@@ -15,6 +16,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using StackExchange.Redis;
 using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -95,6 +97,17 @@ builder.Services.AddScoped<IUserService, UserServiceImpl>();
 builder.Services.AddScoped<IDashboardService, DashboardServiceImpl>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateServiceImpl>();
 builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
+builder.Services.AddSingleton<ICacheService, RedisCacheService>();
+
+// --- CONFIGURACIÓN DE REDIS (CACHÉ) ---
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"]
+    ?? throw new InvalidOperationException("Falta configurar Redis:ConnectionString.");
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+    ConnectionMultiplexer.Connect(redisConnectionString));
+
+
+
 
 // --- CONFIGURACIÓN DE AUTENTICACIÓN JWT ---
 var jwtKey = builder.Configuration["Jwt:Key"]
@@ -133,6 +146,7 @@ builder.WebHost.UseUrls($"http://*:{port}");
 
 
 var app = builder.Build();
+
 
 
 

@@ -1,8 +1,9 @@
 ﻿using AutoMapper;
 using LaCasitaDeMiga.Common.DTOs;
-using LaCasitaDeMiga.Exceptions;
-using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Data;
+using LaCasitaDeMiga.Exceptions;
+using LaCasitaDeMiga.Features.Common.Cache.services;
+using LaCasitaDeMiga.Features.Products.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 
@@ -11,33 +12,35 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
         private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
+        private readonly ICacheService _cache;
 
-        public ProductServiceImpl(ApplicationDbContext context, IMapper mapper) {
+        // --- CONFIGURACIÓN DE CACHÉ ---
+        private static readonly TimeSpan IndividualCacheTtl = TimeSpan.FromMinutes(2);
+        private static readonly TimeSpan ListCacheTtl = TimeSpan.FromSeconds(60);
+        private const string ListVersionKey = "products:version";
+
+        public ProductServiceImpl(ApplicationDbContext context, IMapper mapper, ICacheService cache) {
             this._context = context;
             this._mapper = mapper;
+            this._cache = cache;
         }
 
         // 1. CREAR PRODUCTO (Con generación de SKU y Priority automática/opcional)
         public async Task<ProductResponseDto> CreateAsync(ProducCreatetRequestDto request) {
             var product = _mapper.Map<ProductEntity>(request);
 
-            // El Slug siempre se genera de forma automática basado en el nombre base
             product.Slug = GenerateSlug(request.Name);
 
             if (await _context.Products.AnyAsync(p => p.Slug == product.Slug)) {
                 product.Slug = $"{product.Slug}-{Guid.NewGuid().ToString().Substring(0, 5)}";
             }
 
-            // Calculamos la prioridad máxima actual de la base de datos por si se necesita asignar
             int maxPriority = await _context.ProductVariants
                 .Select(v => (int?)v.Priority)
                 .MaxAsync() ?? 0;
 
-            // --- LÓGICA PARA EL SKU (OPCIONAL) Y PRIORIDADES ---
             int variantIndex = 1;
             foreach (var variant in product.Variants) {
-
-                // Si el administrador envió un SKU manual en el DTO, lo usamos.
                 if (!string.IsNullOrWhiteSpace(variant.Sku)) {
                     variant.Sku = variant.Sku.Trim().ToUpper();
                 } else {
@@ -49,10 +52,8 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                     variant.Sku = $"{product.Slug}{attributePart}".ToUpper();
                 }
 
-                // La versión inicial obligatoria para concurrencia
                 variant.Version = 1;
 
-                // Resolución de prioridades automáticas si vienen en 0
                 if (variant.Priority == 0) {
                     maxPriority++;
                     variant.Priority = maxPriority;
@@ -63,6 +64,8 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
+
+            await InvalidateListCacheAsync();
 
             return await GetByIdAsync(product.Id);
         }
@@ -93,18 +96,22 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             }
 
             variant.Stock = newTotalStock;
-
-            // --- INCREMENTO SEGURO DE CONCURRENCIA ---
             variant.Version++;
 
             try {
-                return await _context.SaveChangesAsync() > 0;
+                var result = await _context.SaveChangesAsync() > 0;
+
+                // Invalidamos el producto por ID. El de slug se autocorrige por TTL corto (ver nota arriba).
+                await InvalidateProductCacheAsync(variant.ProductId);
+                await InvalidateListCacheAsync();
+
+                return result;
             } catch (DbUpdateConcurrencyException) {
                 throw new ConflictException("No se pudo registrar el ingreso. La variante fue modificada en simultáneo por otro proceso.");
             }
         }
 
-        // 3. OBTENER TODOS PAGINADOS (Ordenados por Prioridad de variante)
+        // 3. OBTENER TODOS PAGINADOS (Ordenados por Prioridad de variante) — CACHEADO
         public async Task<PagedResultDto<ProductResponseDto>> GetAllAsync(
                                                                     Guid? categoryId = null,
                                                                     Guid? brandId = null,
@@ -115,6 +122,14 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
             if (pageSize > 50) pageSize = 50;
+
+            // La clave incluye la "versión" actual: si algo cambió, la versión sube
+            // y esta combinación de filtros deja de coincidir con ninguna clave vieja.
+            var version = await _cache.GetVersionAsync(ListVersionKey);
+            var cacheKey = $"products:list:v{version}:cat={categoryId}:brand={brandId}:active={onlyActive}:page={pageNumber}:size={pageSize}";
+
+            var cached = await _cache.GetAsync<PagedResultDto<ProductResponseDto>>(cacheKey);
+            if (cached != null) return cached;
 
             var query = _context.Products
                 .Include(p => p.Category)
@@ -136,16 +151,25 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             var mappedItems = _mapper.Map<IEnumerable<ProductResponseDto>>(products);
 
-            return new PagedResultDto<ProductResponseDto> {
+            var result = new PagedResultDto<ProductResponseDto> {
                 Items = mappedItems,
                 TotalItems = totalItems,
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
+
+            await _cache.SetAsync(cacheKey, result, ListCacheTtl);
+
+            return result;
         }
 
-        // 4. OBTENER POR ID
+        // 4. OBTENER POR ID — CACHEADO
         public async Task<ProductResponseDto?> GetByIdAsync(Guid id) {
+            var cacheKey = $"products:id:{id}";
+
+            var cached = await _cache.GetAsync<ProductResponseDto>(cacheKey);
+            if (cached != null) return cached;
+
             var product = await _context.Products
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
@@ -154,14 +178,22 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             if (product == null) throw new NotFoundException("Producto no encontrado");
 
-            // Ordenamos las variantes por prioridad antes de mapear al DTO
             product.Variants = product.Variants.OrderByDescending(v => v.Priority).ToList();
 
-            return _mapper.Map<ProductResponseDto>(product);
+            var dto = _mapper.Map<ProductResponseDto>(product);
+
+            await _cache.SetAsync(cacheKey, dto, IndividualCacheTtl);
+
+            return dto;
         }
 
-        // 5. OBTENER POR SLUG
+        // 5. OBTENER POR SLUG — CACHEADO
         public async Task<ProductResponseDto?> GetBySlugAsync(string slug) {
+            var cacheKey = $"products:slug:{slug}";
+
+            var cached = await _cache.GetAsync<ProductResponseDto>(cacheKey);
+            if (cached != null) return cached;
+
             var product = await _context.Products
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
@@ -172,7 +204,11 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             product.Variants = product.Variants.OrderByDescending(v => v.Priority).ToList();
 
-            return _mapper.Map<ProductResponseDto>(product);
+            var dto = _mapper.Map<ProductResponseDto>(product);
+
+            await _cache.SetAsync(cacheKey, dto, IndividualCacheTtl);
+
+            return dto;
         }
 
         // 6. ACTUALIZAR DETALLES
@@ -188,6 +224,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             product.CategoryId = request.CategoryId;
             product.BrandId = request.BrandId;
             product.UpdatedAt = DateTime.UtcNow;
+            var oldSlug = product.Slug;
             product.Slug = GenerateSlug(request.Name);
 
             int variantIndex = 1;
@@ -202,6 +239,13 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             }
 
             await _context.SaveChangesAsync();
+
+            await InvalidateProductCacheAsync(id, oldSlug);
+            if (oldSlug != product.Slug) {
+                await _cache.RemoveAsync($"products:slug:{product.Slug}");
+            }
+            await InvalidateListCacheAsync();
+
             return await GetByIdAsync(id);
         }
 
@@ -218,12 +262,15 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             }
 
             variant.Stock += quantity;
-
-            // --- INCREMENTO SEGURO DE CONCURRENCIA ---
             variant.Version++;
 
             try {
-                return await _context.SaveChangesAsync() > 0;
+                var result = await _context.SaveChangesAsync() > 0;
+
+                await InvalidateProductCacheAsync(variant.ProductId);
+                await InvalidateListCacheAsync();
+
+                return result;
             } catch (DbUpdateConcurrencyException) {
                 throw new ConflictException("No se pudo modificar el stock. El producto está siendo afectado por otra transacción simultánea.");
             }
@@ -239,14 +286,11 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 throw new NotFoundException($"La variante con ID: '{variantId}' no fue encontrada.");
             }
 
-            // Aplicamos los cambios directo del mapeo manual
             variant.Price = dto.Price;
             variant.CompareAtPrice = dto.CompareAtPrice;
             variant.LowStockThreshold = dto.LowStockThreshold;
             variant.Attributes = dto.Attributes;
             variant.IsActive = dto.IsActive;
-
-            // --- RESOLUCIÓN DE REGLAS DE NEGOCIO NUEVAS PARA ACTUALIZACIÓN ---
             variant.IsFeatured = dto.IsFeatured ?? false;
 
             if (dto.Priority.HasValue && dto.Priority.Value > 0) {
@@ -256,7 +300,6 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 variant.Priority = maxPriority + 1;
             }
 
-            // VALIDACIÓN DE SKU OPCIONAL EN ACTUALIZACIÓN
             if (!string.IsNullOrWhiteSpace(dto.Sku)) {
                 variant.Sku = dto.Sku.Trim().ToUpper();
             } else {
@@ -268,16 +311,20 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 variant.Sku = $"{variant.Product.Slug}{attributePart}".ToUpper();
             }
 
-            // --- INCREMENTO SEGURO DE CONCURRENCIA ---
             variant.Version++;
 
             try {
                 await _context.SaveChangesAsync();
+
+                await InvalidateProductCacheAsync(variant.ProductId, variant.Product.Slug);
+                await InvalidateListCacheAsync();
+
                 return _mapper.Map<ProductVariantResponseDto>(variant);
             } catch (DbUpdateConcurrencyException) {
                 throw new ConflictException("El formulario de edición falló porque otro usuario guardó cambios en esta variante recientemente.");
             }
         }
+
         // 10. AGREGAR VARIANTES A UN PRODUCTO EXISTENTE (Respetando PurchasePrice del DTO)
         public async Task<ProductResponseDto> AddVariantsAsync(Guid productId, AddProductVariantsRequestDto request) {
             var product = await _context.Products
@@ -292,12 +339,10 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             int variantIndex = product.Variants.Count + 1;
 
             foreach (var variantDto in request.Variants) {
-                // AutoMapper ya pasa automáticamente 'AverageCost' y 'LastPurchasePrice' mapeados desde 'PurchasePrice'
                 var newVariant = _mapper.Map<ProductVariantEntity>(variantDto);
 
                 newVariant.ProductId = productId;
 
-                // --- LÓGICA DE SKU ---
                 if (!string.IsNullOrWhiteSpace(newVariant.Sku)) {
                     newVariant.Sku = newVariant.Sku.Trim().ToUpper();
                 } else {
@@ -316,7 +361,6 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 newVariant.Version = 1;
                 newVariant.IsActive = true;
 
-                // --- LÓGICA DE PRIORIDAD ---
                 if (newVariant.Priority == 0) {
                     if (cachedMaxPriority == null) {
                         cachedMaxPriority = await _context.ProductVariants
@@ -333,6 +377,10 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             }
 
             await _context.SaveChangesAsync();
+
+            await InvalidateProductCacheAsync(productId, product.Slug);
+            await InvalidateListCacheAsync();
+
             return await GetByIdAsync(productId)!;
         }
 
@@ -346,6 +394,10 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             _context.Products.Remove(product);
             await _context.SaveChangesAsync();
+
+            await InvalidateProductCacheAsync(id, product.Slug);
+            await InvalidateListCacheAsync();
+
             return true;
         }
 
@@ -355,6 +407,21 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             str = Regex.Replace(str, @"\s+", " ").Trim();
             str = Regex.Replace(str, @"\s", "-");
             return str;
+        }
+
+        // --- HELPERS DE INVALIDACIÓN DE CACHÉ ---
+
+        private async Task InvalidateProductCacheAsync(Guid productId, string? slug = null) {
+            await _cache.RemoveAsync($"products:id:{productId}");
+            if (!string.IsNullOrEmpty(slug)) {
+                await _cache.RemoveAsync($"products:slug:{slug}");
+            }
+            // Nota: en UpdateStockAsync y RegisterStockEntryAsync no tenemos el slug disponible
+            // sin una consulta extra a la base. Ese caché puntual se autocorrige solo por su TTL corto (2 min).
+        }
+
+        private async Task InvalidateListCacheAsync() {
+            await _cache.IncrementVersionAsync(ListVersionKey);
         }
     }
 }
