@@ -1,6 +1,7 @@
 ﻿using LaCasitaDeMiga.Common.DTOs;
 using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Features.Products.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Products {
@@ -43,6 +44,7 @@ namespace LaCasitaDeMiga.Features.Products {
 
         // 4. CREAR PRODUCTO Y VARIANTES INICIALES
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ProductResponseDto>> Create([FromBody] ProducCreatetRequestDto request) {
             var createdProduct = await _productService.CreateAsync(request);
             // Estándar REST profesional: Devuelve Estado 210 Created y la URL de acceso directo en las cabeceras
@@ -51,6 +53,7 @@ namespace LaCasitaDeMiga.Features.Products {
 
         // 5. ACTUALIZAR PRODUCTO (Campos generales del Padre)
         [HttpPut("{id:guid}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ProductResponseDto>> Update(Guid id, [FromBody] ProductUpdateDto request) {
             var updatedProduct = await _productService.UpdateAsync(id, request);
             return Ok(updatedProduct);
@@ -58,6 +61,7 @@ namespace LaCasitaDeMiga.Features.Products {
 
         // 6. ELIMINAR PRODUCTO (Y variantes asociadas)
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(Guid id) {
             await _productService.DeleteAsync(id);
             return NoContent();
@@ -66,6 +70,7 @@ namespace LaCasitaDeMiga.Features.Products {
         // 7. [NUEVO] AGREGAR NUEVAS VARIANTES A UN PRODUCTO EXISTENTE
         // POST: api/products/{id}/variants
         [HttpPost("{id:guid}/variants")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddVariants(Guid id, [FromBody] AddProductVariantsRequestDto dto) {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
@@ -76,6 +81,7 @@ namespace LaCasitaDeMiga.Features.Products {
         // 8. CORREGIDO A POST: ACTUALIZAR STOCK DE UNA VARIANTE (Ajustes manuales acumulativos)
         // POST: api/products/variants/{variantId}/stock
         [HttpPost("variants/{variantId:guid}/stock")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateStock(Guid variantId, [FromBody] int quantity) {
             var success = await _productService.UpdateStockAsync(variantId, quantity);
 
@@ -89,6 +95,7 @@ namespace LaCasitaDeMiga.Features.Products {
         // 9. CORREGIDO A POST: REGISTRAR INGRESO DE STOCK PROVEEDOR (Costo Promedio Ponderado)
         // POST: api/products/variants/{variantId}/stock-entry
         [HttpPost("variants/{variantId:guid}/stock-entry")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RegisterStockEntry(Guid variantId, [FromBody] StockEntryRequestDto request) {
             var success = await _productService.RegisterStockEntryAsync(
                 variantId,
@@ -106,6 +113,7 @@ namespace LaCasitaDeMiga.Features.Products {
         // 10. ACTUALIZAR DETALLES DE UNA VARIANTE ESPECÍFICA (Precios, atributos, etc.)
         // PUT: api/products/variants/{variantId}
         [HttpPut("variants/{variantId:guid}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ProductVariantResponseDto>> UpdateVariant(
             Guid variantId,
             [FromBody] UpdateProductVariantRequestDto dto) {

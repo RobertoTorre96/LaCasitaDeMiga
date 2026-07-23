@@ -1,10 +1,12 @@
 ﻿using LaCasitaDeMiga.Features.Users.DTOs;
 using LaCasitaDeMiga.Features.Users.services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Users.Controllers {
     [ApiController]
     [Route("api/[controller]")]
+    [AllowAnonymous]
     public class AuthController : ControllerBase {
         private readonly IUserService _userService;
 

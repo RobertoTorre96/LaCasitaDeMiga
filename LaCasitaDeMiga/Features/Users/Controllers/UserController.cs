@@ -3,11 +3,13 @@ using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Features.Products.Services;
 using LaCasitaDeMiga.Features.Users.DTOs;
 using LaCasitaDeMiga.Features.Users.services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Users.Controllers {
     [ApiController]
     [Route("api/user")]
+    [Authorize(Roles = "Admin")]
     public class UserController :ControllerBase{
 
         private readonly IUserService _userService;
@@ -48,6 +50,7 @@ namespace LaCasitaDeMiga.Features.Users.Controllers {
         /// Obtiene la lista de todos los roles disponibles en el sistema.
         /// </summary>
         [HttpGet("roles")]
+        [AllowAnonymous]
         public IActionResult GetRoles() {
             var roles = _userService.GetAvailableRoles();
             return Ok(roles);

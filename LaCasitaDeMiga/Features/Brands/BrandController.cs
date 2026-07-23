@@ -1,5 +1,6 @@
 ﻿using LaCasitaDeMiga.Features.Brands.DTOs;
 using LaCasitaDeMiga.Features.Brands.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Brands {
@@ -13,30 +14,40 @@ namespace LaCasitaDeMiga.Features.Brands {
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Created([FromBody] BrandRequestDto request) {
             var response = await _brandService.CreateAsync(request);
             return CreatedAtAction(nameof(GetById),new {id=response.Id},response);
         }
 
         [HttpGet]
+        [AllowAnonymous]
+
         public async Task<IActionResult> GetAll() {
             var brands = await _brandService.GetAllAsync();
             return Ok(brands);
         }
 
         [HttpGet("{id:guid}")]
+        [AllowAnonymous]
+
         public async Task<IActionResult> GetById([FromRoute] Guid id) {
             var brand = await _brandService.GetByIdAsync(id);
             return Ok(brand);
         }
 
         [HttpPut("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] BrandRequestDto request) {
             var updatedBrand = await _brandService.UpdateAsync(id, request);
             return Ok(updatedBrand);
         }
 
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Delete([FromRoute] Guid id) {
             await _brandService.DeleteAsync(id);
             return NoContent(); 

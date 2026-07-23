@@ -1,10 +1,12 @@
 ﻿using LaCasitaDeMiga.Features.DashBoard;
 using LaCasitaDeMiga.Features.DashBoard.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Dashboard {
     [ApiController]
     [Route("api/dashboard")]
+    [Authorize(Roles = "Admin")]
     public class DashboardController : ControllerBase {
         private readonly IDashboardService _dashboardService;
 

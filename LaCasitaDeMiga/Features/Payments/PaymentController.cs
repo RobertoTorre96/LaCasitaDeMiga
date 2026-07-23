@@ -1,5 +1,6 @@
 ﻿using LaCasitaDeMiga.Features.Payments.DTOs;
 using LaCasitaDeMiga.Features.Payments.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Payments {
@@ -17,6 +18,8 @@ namespace LaCasitaDeMiga.Features.Payments {
 
         // POST: api/payment/{orderId}/preference
         [HttpPost("{orderId:guid}/preference")]
+        [Authorize]
+
         public async Task<ActionResult<string>> CreatePreference(Guid orderId) {
             var initPoint = await _paymentService.CreatePreferenceAsync(orderId);
             return Ok(new { initPoint });
@@ -24,6 +27,7 @@ namespace LaCasitaDeMiga.Features.Payments {
 
         // Controller: SOLO extrae y traduce
         [HttpPost("webhook")]
+        [AllowAnonymous]
         public async Task<IActionResult> Webhook([FromBody] MercadoPagoWebhookDto dto) {
 
             if (dto.EventKind != "payment" || string.IsNullOrEmpty(dto.PaymentId)) {

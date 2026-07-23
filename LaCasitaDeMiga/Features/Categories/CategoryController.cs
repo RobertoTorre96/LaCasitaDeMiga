@@ -1,5 +1,6 @@
 ﻿using LaCasitaDeMiga.Features.Categories.DTOs;
 using LaCasitaDeMiga.Features.Categories.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Categories {
@@ -15,6 +16,8 @@ namespace LaCasitaDeMiga.Features.Categories {
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Created([FromBody] CategoryRequestDto request) {
 
             var response = await _categoryService.CreateAsync(request);
@@ -22,12 +25,16 @@ namespace LaCasitaDeMiga.Features.Categories {
         }
 
         [HttpGet]
+        [AllowAnonymous]
+
         public async Task<IActionResult> GetAll() {
             var catrgories = await _categoryService.GetAllAsync();
             return Ok(catrgories);
         }
 
         [HttpGet("{id:guid}")]
+        [AllowAnonymous]
+
         public async Task<IActionResult> GetById([FromRoute] Guid id) {
             var category = await _categoryService.GetByIdAsync(id);
             return Ok(category);
@@ -35,12 +42,16 @@ namespace LaCasitaDeMiga.Features.Categories {
 
         
         [HttpPut("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] CategoryRequestDto request) {
             var updatedCategory = await _categoryService.UpdateAsync(id, request);
             return Ok(updatedCategory);
         }
 
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Delete([FromRoute] Guid id) {
             await _categoryService.DeleteAsync(id);
             return NoContent(); // Buena práctica REST: Devolver 204 NoContent al borrar con éxito
