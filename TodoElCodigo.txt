@@ -3,6 +3,7 @@ using LaCasitaDeMiga.Data;
 using LaCasitaDeMiga.Exceptions;
 using LaCasitaDeMiga.Features.Brands.Services;
 using LaCasitaDeMiga.Features.Categories.Services;
+using LaCasitaDeMiga.Features.Common.Cache.services;
 using LaCasitaDeMiga.Features.Common.services.MailService;
 using LaCasitaDeMiga.Features.DashBoard.Services;
 using LaCasitaDeMiga.Features.Delivery.services;
@@ -12,7 +13,12 @@ using LaCasitaDeMiga.Features.Payments.Services;
 using LaCasitaDeMiga.Features.Products.Services;
 using LaCasitaDeMiga.Features.Users.services;
 using MercadoPago.Config;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using StackExchange.Redis;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -53,7 +59,30 @@ builder.Services.AddCors(options => {
 builder.Services.AddAutoMapper(typeof(Program));
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+
+//swagger con JWT
+builder.Services.AddSwaggerGen(options => {
+    options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme {
+        Name = "Authorization",
+        Type = SecuritySchemeType.Http,
+        Scheme = "bearer",
+        BearerFormat = "JWT",
+        In = ParameterLocation.Header,
+        Description = "Ingresá el token JWT. No hace falta escribir 'Bearer', Swagger lo agrega solo."
+    });
+
+    options.AddSecurityRequirement(new OpenApiSecurityRequirement {
+        {
+            new OpenApiSecurityScheme {
+                Reference = new OpenApiReference {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
+    });
+});
 
 // --- CONFIGURACIÓN DE CLIENTES HTTP Y LOGÍSTICA ---
 builder.Services.AddHttpClient(); // Inicializa la fábrica de clientes HTTP global
@@ -68,7 +97,42 @@ builder.Services.AddScoped<IProductService, ProductServiceImpl>();
 builder.Services.AddScoped<IUserService, UserServiceImpl>();
 builder.Services.AddScoped<IDashboardService, DashboardServiceImpl>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateServiceImpl>();
-builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>(); // ◄ nueva línea
+builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
+builder.Services.AddSingleton<ICacheService, RedisCacheService>();
+
+// --- CONFIGURACIÓN DE REDIS (CACHÉ) ---
+var redisConnectionString = builder.Configuration["Redis:ConnectionString"]
+    ?? throw new InvalidOperationException("Falta configurar Redis:ConnectionString.");
+
+builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
+    ConnectionMultiplexer.Connect(redisConnectionString));
+
+
+
+
+// --- CONFIGURACIÓN DE AUTENTICACIÓN JWT ---
+var jwtKey = builder.Configuration["Jwt:Key"]
+    ?? throw new InvalidOperationException("Falta configurar Jwt:Key.");
+
+builder.Services
+    .AddAuthentication(options => {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options => {
+        options.TokenValidationParameters = new TokenValidationParameters {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = builder.Configuration["Jwt:Issuer"],
+            ValidAudience = builder.Configuration["Jwt:Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+        };
+    });
+
+builder.Services.AddAuthorization();
+
 
 
 // --- MANEJO GLOBAL DE EXCEPCIONES ---
@@ -83,6 +147,7 @@ builder.WebHost.UseUrls($"http://*:{port}");
 
 
 var app = builder.Build();
+
 
 
 
@@ -103,7 +168,7 @@ if (app.Environment.IsDevelopment()) {
 } else {
     app.UseCors("AllowAll");
 }
-
+app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
@@ -299,6 +364,7 @@ namespace LaCasitaDeMiga.Features.Brands {
 === ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\Brands\BrandController.cs ===  
 ﻿using LaCasitaDeMiga.Features.Brands.DTOs;
 using LaCasitaDeMiga.Features.Brands.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Brands {
@@ -312,30 +378,40 @@ namespace LaCasitaDeMiga.Features.Brands {
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Created([FromBody] BrandRequestDto request) {
             var response = await _brandService.CreateAsync(request);
             return CreatedAtAction(nameof(GetById),new {id=response.Id},response);
         }
 
         [HttpGet]
+        [AllowAnonymous]
+
         public async Task<IActionResult> GetAll() {
             var brands = await _brandService.GetAllAsync();
             return Ok(brands);
         }
 
         [HttpGet("{id:guid}")]
+        [AllowAnonymous]
+
         public async Task<IActionResult> GetById([FromRoute] Guid id) {
             var brand = await _brandService.GetByIdAsync(id);
             return Ok(brand);
         }
 
         [HttpPut("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] BrandRequestDto request) {
             var updatedBrand = await _brandService.UpdateAsync(id, request);
             return Ok(updatedBrand);
         }
 
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Delete([FromRoute] Guid id) {
             await _brandService.DeleteAsync(id);
             return NoContent(); 
@@ -520,6 +596,7 @@ namespace LaCasitaDeMiga.Features.Categories {
 === ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\Categories\CategoryController.cs ===  
 ﻿using LaCasitaDeMiga.Features.Categories.DTOs;
 using LaCasitaDeMiga.Features.Categories.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Categories {
@@ -535,6 +612,8 @@ namespace LaCasitaDeMiga.Features.Categories {
         }
 
         [HttpPost]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Created([FromBody] CategoryRequestDto request) {
 
             var response = await _categoryService.CreateAsync(request);
@@ -542,12 +621,16 @@ namespace LaCasitaDeMiga.Features.Categories {
         }
 
         [HttpGet]
+        [AllowAnonymous]
+
         public async Task<IActionResult> GetAll() {
             var catrgories = await _categoryService.GetAllAsync();
             return Ok(catrgories);
         }
 
         [HttpGet("{id:guid}")]
+        [AllowAnonymous]
+
         public async Task<IActionResult> GetById([FromRoute] Guid id) {
             var category = await _categoryService.GetByIdAsync(id);
             return Ok(category);
@@ -555,12 +638,16 @@ namespace LaCasitaDeMiga.Features.Categories {
 
         
         [HttpPut("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Update([FromRoute] Guid id, [FromBody] CategoryRequestDto request) {
             var updatedCategory = await _categoryService.UpdateAsync(id, request);
             return Ok(updatedCategory);
         }
 
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = "Admin")]
+
         public async Task<IActionResult> Delete([FromRoute] Guid id) {
             await _categoryService.DeleteAsync(id);
             return NoContent(); // Buena práctica REST: Devolver 204 NoContent al borrar con éxito
@@ -845,6 +932,74 @@ namespace LaCasitaDeMiga.Features.Categories.Services {
 }
 
  
+=== ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\Common\Cache\services\ICacheService.cs ===  
+﻿namespace LaCasitaDeMiga.Features.Common.Cache.services {
+    public interface ICacheService {
+        Task<T?> GetAsync<T>(string key);
+        Task SetAsync<T>(string key, T value, TimeSpan expiration);
+        Task RemoveAsync(string key);
+        Task<long> GetVersionAsync(string versionKey);
+        Task<long> IncrementVersionAsync(string versionKey);
+    }
+}
+ 
+=== ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\Common\Cache\services\RedisCacheService.cs ===  
+﻿using StackExchange.Redis;
+using System.Text.Json;
+
+namespace LaCasitaDeMiga.Features.Common.Cache.services {
+    public class RedisCacheService: ICacheService {
+
+        private readonly IDatabase _db;
+        private readonly ILogger<RedisCacheService> _logger;
+
+        public RedisCacheService(IConnectionMultiplexer redis, ILogger<RedisCacheService> logger) {
+            _db = redis.GetDatabase();
+            _logger = logger;
+        }
+
+        public async Task<T?> GetAsync<T>(string key) {
+            try {
+                var value = await _db.StringGetAsync(key);
+                if (value.IsNullOrEmpty) return default;
+
+                return JsonSerializer.Deserialize<T>(value!);
+            } catch (Exception ex) {
+                // Si Redis falla, no rompemos la app: seguimos como si no hubiera caché
+                _logger.LogWarning(ex, "No se pudo leer la clave de caché {Key}", key);
+                return default;
+            }
+        }
+
+        public async Task SetAsync<T>(string key, T value, TimeSpan expiration) {
+            try {
+                var json = JsonSerializer.Serialize(value);
+                await _db.StringSetAsync(key, json, expiration);
+            } catch (Exception ex) {
+                _logger.LogWarning(ex, "No se pudo guardar la clave de caché {Key}", key);
+            }
+        }
+
+        public async Task RemoveAsync(string key) {
+            try {
+                await _db.KeyDeleteAsync(key);
+            } catch (Exception ex) {
+                _logger.LogWarning(ex, "No se pudo eliminar la clave de caché {Key}", key);
+            }
+        }
+
+        public async Task<long> GetVersionAsync(string versionKey) {
+            var value = await _db.StringGetAsync(versionKey);
+            return value.IsNullOrEmpty ? 0 : (long)value;
+        }
+
+        public async Task<long> IncrementVersionAsync(string versionKey) {
+            // INCR es una operación atómica en Redis: segura ante escrituras concurrentes
+            return await _db.StringIncrementAsync(versionKey);
+        }
+    }
+}
+ 
 === ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\Common\services\MailService\EmailTemplateServiceImpl.cs ===  
 ﻿using LaCasitaDeMiga.Features.Common.services.MailService.Enums;
 using LaCasitaDeMiga.Features.Orders.DTOs;
@@ -920,11 +1075,13 @@ namespace LaCasitaDeMiga.Features.Common.services.MailService {
 === ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\DashBoard\DashboardController.cs ===  
 ﻿using LaCasitaDeMiga.Features.DashBoard;
 using LaCasitaDeMiga.Features.DashBoard.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Dashboard {
     [ApiController]
     [Route("api/dashboard")]
+    [Authorize(Roles = "Admin")]
     public class DashboardController : ControllerBase {
         private readonly IDashboardService _dashboardService;
 
@@ -1326,73 +1483,83 @@ namespace LaCasitaDeMiga.Features.Orders {
     }
 }  
 === ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\Orders\OrderController.cs ===  
-﻿using LaCasitaDeMiga.Features.Common.services.MailService;
+﻿using System.Security.Claims;
+using LaCasitaDeMiga.Features.Common.services.MailService;
 using LaCasitaDeMiga.Features.Orders.DTOs;
 using LaCasitaDeMiga.Features.Orders.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Orders {
     [ApiController]
-    [Route("api/orders")]
+    [Route("api/[controller]")]
+    [Authorize]
     public class OrderController : ControllerBase {
         private readonly IOrderService _orderService;
 
-        // Limpiamos el parámetro "email" del constructor ya que no se estaba usando
         public OrderController(IOrderService orderService) {
             _orderService = orderService;
         }
 
-        // 1. ENDPOINT PARA CREAR LA ORDEN (CHECKOUT REGULAR)
-        // POST: api/order
         [HttpPost]
         public async Task<ActionResult<OrderResponseDto>> CreateOrder([FromBody] OrderRequestDto request) {
+            if (!IsOwnerOrAdmin(request.CustomerId)) {
+                return Forbid();
+            }
+
             var response = await _orderService.CreateOrderAsync(request);
             await _orderService.SendOrderConfirmationEmailAsync(response);
-
-            // Devolvemos un 201 Created con la ruta hacia el GetById correspondiente
             return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
         }
 
-        //borrar para github recluter
-        // POST: api/order/combo-especial
-        [HttpPost("combo-especial")] // ◄ ¡Corregido! Ruta única para Swagger
+        [HttpPost("combo-especial")]
         public async Task<ActionResult<OrderResponseDto>> CreateOrderComboEspecial([FromBody] ComboEspecialDTO request) {
-            // ◄ Guardamos la respuesta real del servicio (OrderResponseDto)
+            if (!IsOwnerOrAdmin(request.CustomerId)) {
+                return Forbid();
+            }
+
             var response = await _orderService.CreateOrderAsync(request);
-
-            // ◄ Enviamos el correo usando el DTO del combo que tiene los datos desglosados
             await _orderService.SendOrderConfirmationEmailAsync(request);
-
-            // Devolvemos un 201 Created apuntando al ID real de la orden creada
             return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
         }
 
-
-        // 3. ENDPOINT PARA OBTENER UNA ORDEN POR ID
-        // GET: api/order/{id}
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<OrderResponseDto>> GetById(Guid id) {
             var response = await _orderService.GetByIdAsync(id);
+
+            if (!IsOwnerOrAdmin(response.CustomerId)) {
+                return Forbid();
+            }
+
             return Ok(response);
         }
 
-        // 4. ENDPOINT PARA EL HISTORIAL DE UN CLIENTE
-        // GET: api/order/customer/{customerId}
         [HttpGet("customer/{customerId:guid}")]
         public async Task<ActionResult<IEnumerable<OrderResponseDto>>> GetByCustomerId(Guid customerId) {
+            if (!IsOwnerOrAdmin(customerId)) {
+                return Forbid();
+            }
+
             var response = await _orderService.GetByCustomerIdAsync(customerId);
             return Ok(response);
         }
 
-        // 5. ENDPOINT PARA CAMBIAR EL ESTADO (ADMIN)
-        // PUT: api/order/{id}/status
         [HttpPut("{id:guid}/status")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<OrderResponseDto>> UpdateStatus(Guid id, [FromBody] EOrderStatus newStatus) {
             var response = await _orderService.UpdateStatusAsync(id, newStatus);
             return Ok(response);
         }
+
+        // Verifica que el usuario logueado sea el dueño del recurso, o bien un Admin
+        private bool IsOwnerOrAdmin(Guid resourceCustomerId) {
+            if (User.IsInRole("Admin")) return true;
+
+            var currentUserId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            return currentUserId == resourceCustomerId.ToString();
+        }
     }
-}  
+} 
 === ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\Orders\OrderEntity.cs ===  
 ﻿using LaCasitaDeMiga.Features.Users; // Asegúrate de importar el namespace donde está tu UserEntity
 
@@ -1887,6 +2054,7 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
 === ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\Payments\PaymentController.cs ===  
 ﻿using LaCasitaDeMiga.Features.Payments.DTOs;
 using LaCasitaDeMiga.Features.Payments.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Payments {
@@ -1904,6 +2072,8 @@ namespace LaCasitaDeMiga.Features.Payments {
 
         // POST: api/payment/{orderId}/preference
         [HttpPost("{orderId:guid}/preference")]
+        [Authorize]
+
         public async Task<ActionResult<string>> CreatePreference(Guid orderId) {
             var initPoint = await _paymentService.CreatePreferenceAsync(orderId);
             return Ok(new { initPoint });
@@ -1911,6 +2081,7 @@ namespace LaCasitaDeMiga.Features.Payments {
 
         // Controller: SOLO extrae y traduce
         [HttpPost("webhook")]
+        [AllowAnonymous]
         public async Task<IActionResult> Webhook([FromBody] MercadoPagoWebhookDto dto) {
 
             if (dto.EventKind != "payment" || string.IsNullOrEmpty(dto.PaymentId)) {
@@ -2216,6 +2387,7 @@ namespace LaCasitaDeMiga.Features.Products {
 ﻿using LaCasitaDeMiga.Common.DTOs;
 using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Features.Products.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Products {
@@ -2258,6 +2430,7 @@ namespace LaCasitaDeMiga.Features.Products {
 
         // 4. CREAR PRODUCTO Y VARIANTES INICIALES
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ProductResponseDto>> Create([FromBody] ProducCreatetRequestDto request) {
             var createdProduct = await _productService.CreateAsync(request);
             // Estándar REST profesional: Devuelve Estado 210 Created y la URL de acceso directo en las cabeceras
@@ -2266,6 +2439,7 @@ namespace LaCasitaDeMiga.Features.Products {
 
         // 5. ACTUALIZAR PRODUCTO (Campos generales del Padre)
         [HttpPut("{id:guid}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ProductResponseDto>> Update(Guid id, [FromBody] ProductUpdateDto request) {
             var updatedProduct = await _productService.UpdateAsync(id, request);
             return Ok(updatedProduct);
@@ -2273,6 +2447,7 @@ namespace LaCasitaDeMiga.Features.Products {
 
         // 6. ELIMINAR PRODUCTO (Y variantes asociadas)
         [HttpDelete("{id:guid}")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> Delete(Guid id) {
             await _productService.DeleteAsync(id);
             return NoContent();
@@ -2281,6 +2456,7 @@ namespace LaCasitaDeMiga.Features.Products {
         // 7. [NUEVO] AGREGAR NUEVAS VARIANTES A UN PRODUCTO EXISTENTE
         // POST: api/products/{id}/variants
         [HttpPost("{id:guid}/variants")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> AddVariants(Guid id, [FromBody] AddProductVariantsRequestDto dto) {
             if (!ModelState.IsValid) return BadRequest(ModelState);
 
@@ -2291,6 +2467,7 @@ namespace LaCasitaDeMiga.Features.Products {
         // 8. CORREGIDO A POST: ACTUALIZAR STOCK DE UNA VARIANTE (Ajustes manuales acumulativos)
         // POST: api/products/variants/{variantId}/stock
         [HttpPost("variants/{variantId:guid}/stock")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> UpdateStock(Guid variantId, [FromBody] int quantity) {
             var success = await _productService.UpdateStockAsync(variantId, quantity);
 
@@ -2304,6 +2481,7 @@ namespace LaCasitaDeMiga.Features.Products {
         // 9. CORREGIDO A POST: REGISTRAR INGRESO DE STOCK PROVEEDOR (Costo Promedio Ponderado)
         // POST: api/products/variants/{variantId}/stock-entry
         [HttpPost("variants/{variantId:guid}/stock-entry")]
+        [Authorize(Roles = "Admin")]
         public async Task<IActionResult> RegisterStockEntry(Guid variantId, [FromBody] StockEntryRequestDto request) {
             var success = await _productService.RegisterStockEntryAsync(
                 variantId,
@@ -2321,6 +2499,7 @@ namespace LaCasitaDeMiga.Features.Products {
         // 10. ACTUALIZAR DETALLES DE UNA VARIANTE ESPECÍFICA (Precios, atributos, etc.)
         // PUT: api/products/variants/{variantId}
         [HttpPut("variants/{variantId:guid}")]
+        [Authorize(Roles = "Admin")]
         public async Task<ActionResult<ProductVariantResponseDto>> UpdateVariant(
             Guid variantId,
             [FromBody] UpdateProductVariantRequestDto dto) {
@@ -2817,9 +2996,10 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 === ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\Products\Services\ProductServiceImpl.cs ===  
 ﻿using AutoMapper;
 using LaCasitaDeMiga.Common.DTOs;
-using LaCasitaDeMiga.Exceptions;
-using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Data;
+using LaCasitaDeMiga.Exceptions;
+using LaCasitaDeMiga.Features.Common.Cache.services;
+using LaCasitaDeMiga.Features.Products.DTOs;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 
@@ -2828,33 +3008,35 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
         private readonly ApplicationDbContext _context;
         private readonly IMapper _mapper;
+        private readonly ICacheService _cache;
 
-        public ProductServiceImpl(ApplicationDbContext context, IMapper mapper) {
+        // --- CONFIGURACIÓN DE CACHÉ ---
+        private static readonly TimeSpan IndividualCacheTtl = TimeSpan.FromMinutes(2);
+        private static readonly TimeSpan ListCacheTtl = TimeSpan.FromSeconds(60);
+        private const string ListVersionKey = "products:version";
+
+        public ProductServiceImpl(ApplicationDbContext context, IMapper mapper, ICacheService cache) {
             this._context = context;
             this._mapper = mapper;
+            this._cache = cache;
         }
 
         // 1. CREAR PRODUCTO (Con generación de SKU y Priority automática/opcional)
         public async Task<ProductResponseDto> CreateAsync(ProducCreatetRequestDto request) {
             var product = _mapper.Map<ProductEntity>(request);
 
-            // El Slug siempre se genera de forma automática basado en el nombre base
             product.Slug = GenerateSlug(request.Name);
 
             if (await _context.Products.AnyAsync(p => p.Slug == product.Slug)) {
                 product.Slug = $"{product.Slug}-{Guid.NewGuid().ToString().Substring(0, 5)}";
             }
 
-            // Calculamos la prioridad máxima actual de la base de datos por si se necesita asignar
             int maxPriority = await _context.ProductVariants
                 .Select(v => (int?)v.Priority)
                 .MaxAsync() ?? 0;
 
-            // --- LÓGICA PARA EL SKU (OPCIONAL) Y PRIORIDADES ---
             int variantIndex = 1;
             foreach (var variant in product.Variants) {
-
-                // Si el administrador envió un SKU manual en el DTO, lo usamos.
                 if (!string.IsNullOrWhiteSpace(variant.Sku)) {
                     variant.Sku = variant.Sku.Trim().ToUpper();
                 } else {
@@ -2866,10 +3048,8 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                     variant.Sku = $"{product.Slug}{attributePart}".ToUpper();
                 }
 
-                // La versión inicial obligatoria para concurrencia
                 variant.Version = 1;
 
-                // Resolución de prioridades automáticas si vienen en 0
                 if (variant.Priority == 0) {
                     maxPriority++;
                     variant.Priority = maxPriority;
@@ -2880,6 +3060,8 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
+
+            await InvalidateListCacheAsync();
 
             return await GetByIdAsync(product.Id);
         }
@@ -2910,18 +3092,22 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             }
 
             variant.Stock = newTotalStock;
-
-            // --- INCREMENTO SEGURO DE CONCURRENCIA ---
             variant.Version++;
 
             try {
-                return await _context.SaveChangesAsync() > 0;
+                var result = await _context.SaveChangesAsync() > 0;
+
+                // Invalidamos el producto por ID. El de slug se autocorrige por TTL corto (ver nota arriba).
+                await InvalidateProductCacheAsync(variant.ProductId);
+                await InvalidateListCacheAsync();
+
+                return result;
             } catch (DbUpdateConcurrencyException) {
                 throw new ConflictException("No se pudo registrar el ingreso. La variante fue modificada en simultáneo por otro proceso.");
             }
         }
 
-        // 3. OBTENER TODOS PAGINADOS (Ordenados por Prioridad de variante)
+        // 3. OBTENER TODOS PAGINADOS (Ordenados por Prioridad de variante) — CACHEADO
         public async Task<PagedResultDto<ProductResponseDto>> GetAllAsync(
                                                                     Guid? categoryId = null,
                                                                     Guid? brandId = null,
@@ -2932,6 +3118,14 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize < 1) pageSize = 10;
             if (pageSize > 50) pageSize = 50;
+
+            // La clave incluye la "versión" actual: si algo cambió, la versión sube
+            // y esta combinación de filtros deja de coincidir con ninguna clave vieja.
+            var version = await _cache.GetVersionAsync(ListVersionKey);
+            var cacheKey = $"products:list:v{version}:cat={categoryId}:brand={brandId}:active={onlyActive}:page={pageNumber}:size={pageSize}";
+
+            var cached = await _cache.GetAsync<PagedResultDto<ProductResponseDto>>(cacheKey);
+            if (cached != null) return cached;
 
             var query = _context.Products
                 .Include(p => p.Category)
@@ -2953,16 +3147,25 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             var mappedItems = _mapper.Map<IEnumerable<ProductResponseDto>>(products);
 
-            return new PagedResultDto<ProductResponseDto> {
+            var result = new PagedResultDto<ProductResponseDto> {
                 Items = mappedItems,
                 TotalItems = totalItems,
                 PageNumber = pageNumber,
                 PageSize = pageSize
             };
+
+            await _cache.SetAsync(cacheKey, result, ListCacheTtl);
+
+            return result;
         }
 
-        // 4. OBTENER POR ID
+        // 4. OBTENER POR ID — CACHEADO
         public async Task<ProductResponseDto?> GetByIdAsync(Guid id) {
+            var cacheKey = $"products:id:{id}";
+
+            var cached = await _cache.GetAsync<ProductResponseDto>(cacheKey);
+            if (cached != null) return cached;
+
             var product = await _context.Products
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
@@ -2971,14 +3174,22 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             if (product == null) throw new NotFoundException("Producto no encontrado");
 
-            // Ordenamos las variantes por prioridad antes de mapear al DTO
             product.Variants = product.Variants.OrderByDescending(v => v.Priority).ToList();
 
-            return _mapper.Map<ProductResponseDto>(product);
+            var dto = _mapper.Map<ProductResponseDto>(product);
+
+            await _cache.SetAsync(cacheKey, dto, IndividualCacheTtl);
+
+            return dto;
         }
 
-        // 5. OBTENER POR SLUG
+        // 5. OBTENER POR SLUG — CACHEADO
         public async Task<ProductResponseDto?> GetBySlugAsync(string slug) {
+            var cacheKey = $"products:slug:{slug}";
+
+            var cached = await _cache.GetAsync<ProductResponseDto>(cacheKey);
+            if (cached != null) return cached;
+
             var product = await _context.Products
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
@@ -2989,7 +3200,11 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             product.Variants = product.Variants.OrderByDescending(v => v.Priority).ToList();
 
-            return _mapper.Map<ProductResponseDto>(product);
+            var dto = _mapper.Map<ProductResponseDto>(product);
+
+            await _cache.SetAsync(cacheKey, dto, IndividualCacheTtl);
+
+            return dto;
         }
 
         // 6. ACTUALIZAR DETALLES
@@ -3005,6 +3220,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             product.CategoryId = request.CategoryId;
             product.BrandId = request.BrandId;
             product.UpdatedAt = DateTime.UtcNow;
+            var oldSlug = product.Slug;
             product.Slug = GenerateSlug(request.Name);
 
             int variantIndex = 1;
@@ -3019,6 +3235,13 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             }
 
             await _context.SaveChangesAsync();
+
+            await InvalidateProductCacheAsync(id, oldSlug);
+            if (oldSlug != product.Slug) {
+                await _cache.RemoveAsync($"products:slug:{product.Slug}");
+            }
+            await InvalidateListCacheAsync();
+
             return await GetByIdAsync(id);
         }
 
@@ -3035,12 +3258,15 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             }
 
             variant.Stock += quantity;
-
-            // --- INCREMENTO SEGURO DE CONCURRENCIA ---
             variant.Version++;
 
             try {
-                return await _context.SaveChangesAsync() > 0;
+                var result = await _context.SaveChangesAsync() > 0;
+
+                await InvalidateProductCacheAsync(variant.ProductId);
+                await InvalidateListCacheAsync();
+
+                return result;
             } catch (DbUpdateConcurrencyException) {
                 throw new ConflictException("No se pudo modificar el stock. El producto está siendo afectado por otra transacción simultánea.");
             }
@@ -3056,14 +3282,11 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 throw new NotFoundException($"La variante con ID: '{variantId}' no fue encontrada.");
             }
 
-            // Aplicamos los cambios directo del mapeo manual
             variant.Price = dto.Price;
             variant.CompareAtPrice = dto.CompareAtPrice;
             variant.LowStockThreshold = dto.LowStockThreshold;
             variant.Attributes = dto.Attributes;
             variant.IsActive = dto.IsActive;
-
-            // --- RESOLUCIÓN DE REGLAS DE NEGOCIO NUEVAS PARA ACTUALIZACIÓN ---
             variant.IsFeatured = dto.IsFeatured ?? false;
 
             if (dto.Priority.HasValue && dto.Priority.Value > 0) {
@@ -3073,7 +3296,6 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 variant.Priority = maxPriority + 1;
             }
 
-            // VALIDACIÓN DE SKU OPCIONAL EN ACTUALIZACIÓN
             if (!string.IsNullOrWhiteSpace(dto.Sku)) {
                 variant.Sku = dto.Sku.Trim().ToUpper();
             } else {
@@ -3085,16 +3307,20 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 variant.Sku = $"{variant.Product.Slug}{attributePart}".ToUpper();
             }
 
-            // --- INCREMENTO SEGURO DE CONCURRENCIA ---
             variant.Version++;
 
             try {
                 await _context.SaveChangesAsync();
+
+                await InvalidateProductCacheAsync(variant.ProductId, variant.Product.Slug);
+                await InvalidateListCacheAsync();
+
                 return _mapper.Map<ProductVariantResponseDto>(variant);
             } catch (DbUpdateConcurrencyException) {
                 throw new ConflictException("El formulario de edición falló porque otro usuario guardó cambios en esta variante recientemente.");
             }
         }
+
         // 10. AGREGAR VARIANTES A UN PRODUCTO EXISTENTE (Respetando PurchasePrice del DTO)
         public async Task<ProductResponseDto> AddVariantsAsync(Guid productId, AddProductVariantsRequestDto request) {
             var product = await _context.Products
@@ -3109,12 +3335,10 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             int variantIndex = product.Variants.Count + 1;
 
             foreach (var variantDto in request.Variants) {
-                // AutoMapper ya pasa automáticamente 'AverageCost' y 'LastPurchasePrice' mapeados desde 'PurchasePrice'
                 var newVariant = _mapper.Map<ProductVariantEntity>(variantDto);
 
                 newVariant.ProductId = productId;
 
-                // --- LÓGICA DE SKU ---
                 if (!string.IsNullOrWhiteSpace(newVariant.Sku)) {
                     newVariant.Sku = newVariant.Sku.Trim().ToUpper();
                 } else {
@@ -3133,7 +3357,6 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 newVariant.Version = 1;
                 newVariant.IsActive = true;
 
-                // --- LÓGICA DE PRIORIDAD ---
                 if (newVariant.Priority == 0) {
                     if (cachedMaxPriority == null) {
                         cachedMaxPriority = await _context.ProductVariants
@@ -3150,6 +3373,10 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             }
 
             await _context.SaveChangesAsync();
+
+            await InvalidateProductCacheAsync(productId, product.Slug);
+            await InvalidateListCacheAsync();
+
             return await GetByIdAsync(productId)!;
         }
 
@@ -3163,6 +3390,10 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             _context.Products.Remove(product);
             await _context.SaveChangesAsync();
+
+            await InvalidateProductCacheAsync(id, product.Slug);
+            await InvalidateListCacheAsync();
+
             return true;
         }
 
@@ -3172,6 +3403,21 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             str = Regex.Replace(str, @"\s+", " ").Trim();
             str = Regex.Replace(str, @"\s", "-");
             return str;
+        }
+
+        // --- HELPERS DE INVALIDACIÓN DE CACHÉ ---
+
+        private async Task InvalidateProductCacheAsync(Guid productId, string? slug = null) {
+            await _cache.RemoveAsync($"products:id:{productId}");
+            if (!string.IsNullOrEmpty(slug)) {
+                await _cache.RemoveAsync($"products:slug:{slug}");
+            }
+            // Nota: en UpdateStockAsync y RegisterStockEntryAsync no tenemos el slug disponible
+            // sin una consulta extra a la base. Ese caché puntual se autocorrige solo por su TTL corto (2 min).
+        }
+
+        private async Task InvalidateListCacheAsync() {
+            await _cache.IncrementVersionAsync(ListVersionKey);
         }
     }
 } 
@@ -3260,11 +3506,13 @@ namespace LaCasitaDeMiga.Features.Users {
 === ARCHIVO: C:\Users\PC\Desktop\rob\Net\LaCasitaDeMiga\LaCasitaDeMiga\Features\Users\Controllers\AuthController.cs ===  
 ﻿using LaCasitaDeMiga.Features.Users.DTOs;
 using LaCasitaDeMiga.Features.Users.services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Users.Controllers {
     [ApiController]
     [Route("api/[controller]")]
+    [AllowAnonymous]
     public class AuthController : ControllerBase {
         private readonly IUserService _userService;
 
@@ -3322,11 +3570,13 @@ using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Features.Products.Services;
 using LaCasitaDeMiga.Features.Users.DTOs;
 using LaCasitaDeMiga.Features.Users.services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace LaCasitaDeMiga.Features.Users.Controllers {
     [ApiController]
     [Route("api/user")]
+    [Authorize(Roles = "Admin")]
     public class UserController :ControllerBase{
 
         private readonly IUserService _userService;
@@ -3367,6 +3617,7 @@ namespace LaCasitaDeMiga.Features.Users.Controllers {
         /// Obtiene la lista de todos los roles disponibles en el sistema.
         /// </summary>
         [HttpGet("roles")]
+        [AllowAnonymous]
         public IActionResult GetRoles() {
             var roles = _userService.GetAvailableRoles();
             return Ok(roles);
