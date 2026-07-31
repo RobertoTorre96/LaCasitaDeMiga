@@ -36,7 +36,8 @@ namespace LaCasitaDeMiga.Features.Orders.Mapper {
             // Mapeo de la Cabecera de la Orden
             CreateMap<OrderEntity, OrderResponseDto>()
                 .ForMember(dest => dest.Status, opt => opt.MapFrom(src => src.Status.ToString()))
-                .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Items));
+                .ForMember(dest => dest.Items, opt => opt.MapFrom(src => src.Items))
+                .ForMember(dest => dest.CustomerName, opt => opt.MapFrom(src => src.Customer.Name));
 
             // Mapeo del Detalle (Ítem)
             CreateMap<OrderItemEntity, OrderItemResponseDto>()

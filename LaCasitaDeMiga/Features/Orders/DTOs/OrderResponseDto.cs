@@ -2,6 +2,7 @@
     public class OrderResponseDto {
         public Guid Id { get; set; }
         public Guid CustomerId { get; set; }
+        public string CustomerName { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
         public string Status { get; set; } = null!;
         public decimal TotalAmount { get; set; }
