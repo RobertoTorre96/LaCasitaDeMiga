@@ -177,6 +177,7 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
 
             // 1. VOLVEMOS A LOS INCLUDES PARA TRAER LOS DATOS A MEMORIA
             var query = _context.Orders
+                .AsNoTracking()
                 .Include(o => o.Customer)
                 .Include(o => o.Items)
                     .ThenInclude(i => i.ProductVariant)
@@ -224,6 +225,8 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
         // 2. OBTENER POR ID
         public async Task<OrderResponseDto> GetByIdAsync(Guid id) {
             var order = await _context.Orders
+                .AsNoTracking()
+                .Include(o => o.Customer) 
                 .Include(o => o.Items)
                     .ThenInclude(i => i.ProductVariant)
                         .ThenInclude(v => v.Product)
@@ -239,7 +242,8 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
         // 3. HISTORIAL DEL CLIENTE
         public async Task<IEnumerable<OrderResponseDto>> GetByCustomerIdAsync(Guid customerId) {
             var orders = await _context.Orders
-
+                .AsNoTracking()
+                .Include(o => o.Customer)
                 .Include(o => o.Items)
                     .ThenInclude(i => i.ProductVariant)
                         .ThenInclude(v => v.Product)
