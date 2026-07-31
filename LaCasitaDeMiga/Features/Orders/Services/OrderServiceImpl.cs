@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using AutoMapper.QueryableExtensions;
 using LaCasitaDeMiga.Common.DTOs;
 using LaCasitaDeMiga.Data;
 using LaCasitaDeMiga.Exceptions;
@@ -10,6 +11,7 @@ using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Features.Products.Services;
 using LaCasitaDeMiga.Features.Users.services;
 using Microsoft.EntityFrameworkCore;
+using StackExchange.Redis;
 
 namespace LaCasitaDeMiga.Features.Orders.Services {
     public class OrderServiceImpl : IOrderService {
@@ -90,6 +92,7 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
 
                 // Rehidratamos la entidad con todos sus Includes para que el AutoMapper pueda armar el VariantName dinámico
                 var fullOrder = await _context.Orders
+                    .Include(o => o.Customer)
                     .Include(o => o.Items)
                         .ThenInclude(i => i.ProductVariant)
                             .ThenInclude(v => v.Product)
@@ -147,6 +150,7 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
 
                 // Rehidratamos para que el AutoMapper no falle buscando las relaciones
                 var fullOrder = await _context.Orders
+                    .Include(o => o.Customer)
                     .Include(o => o.Items)
                         .ThenInclude(i => i.ProductVariant)
                             .ThenInclude(v => v.Product)
@@ -171,7 +175,9 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
             if (pageSize < 1) pageSize = 10;
             if (pageSize > 50) pageSize = 50;
 
+            // 1. VOLVEMOS A LOS INCLUDES PARA TRAER LOS DATOS A MEMORIA
             var query = _context.Orders
+                .Include(o => o.Customer)
                 .Include(o => o.Items)
                     .ThenInclude(i => i.ProductVariant)
                         .ThenInclude(v => v.Product)
@@ -180,23 +186,23 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
             if (status.HasValue) {
                 query = query.Where(o => o.Status == status.Value);
             }
-
             if (startDate.HasValue) {
                 query = query.Where(o => o.CreatedAt >= startDate.Value);
             }
-
             if (endDate.HasValue) {
                 query = query.Where(o => o.CreatedAt <= endDate.Value);
             }
 
             var totalItems = await query.CountAsync();
 
+            // 2. EJECUTAMOS LA CONSULTA (.ToListAsync)
             var orders = await query
                 .OrderByDescending(o => o.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)
                 .ToListAsync();
 
+            // 3. MAPEAMOS EN MEMORIA PARA QUE EL STRING.JOIN FUNCIONE SIN ROMPER SQL
             var mappedItems = _mapper.Map<IEnumerable<OrderResponseDto>>(orders);
 
             return new PagedResultDto<OrderResponseDto> {
@@ -206,7 +212,6 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
                 PageSize = pageSize
             };
         }
-
         //-----------------------------------------------------------------------------
 
 
@@ -234,6 +239,7 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
         // 3. HISTORIAL DEL CLIENTE
         public async Task<IEnumerable<OrderResponseDto>> GetByCustomerIdAsync(Guid customerId) {
             var orders = await _context.Orders
+
                 .Include(o => o.Items)
                     .ThenInclude(i => i.ProductVariant)
                         .ThenInclude(v => v.Product)
