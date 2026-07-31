@@ -1,4 +1,5 @@
-﻿using LaCasitaDeMiga.Features.Orders.DTOs;
+﻿using LaCasitaDeMiga.Common.DTOs;
+using LaCasitaDeMiga.Features.Orders.DTOs;
 
 namespace LaCasitaDeMiga.Features.Orders.Services {
     public interface IOrderService {
@@ -11,8 +12,16 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
 
         Task<OrderResponseDto> UpdateStatusAsync(Guid orderId, EOrderStatus newStatus);
         Task SendOrderConfirmationEmailAsync(OrderResponseDto order);
+        Task<PagedResultDto<OrderResponseDto>> GetAllAsync(
+                                                           EOrderStatus? status = null,
+                                                           DateTime? startDate = null,
+                                                           DateTime? endDate = null,
+                                                           int pageNumber = 1,
+                                                           int pageSize = 10);
 
-        //borrar para github recluter
-        Task SendOrderConfirmationEmailAsync(ComboEspecialDTO order); // ◄ ¡Faltaba esta línea!
+
+
+        Task SendOrderConfirmationEmailAsync(ComboEspecialDTO order); 
+
     }
 }

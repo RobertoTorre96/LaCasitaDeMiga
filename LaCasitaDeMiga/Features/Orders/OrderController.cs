@@ -1,9 +1,10 @@
-﻿using System.Security.Claims;
+﻿using LaCasitaDeMiga.Common.DTOs;
 using LaCasitaDeMiga.Features.Common.services.MailService;
 using LaCasitaDeMiga.Features.Orders.DTOs;
 using LaCasitaDeMiga.Features.Orders.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace LaCasitaDeMiga.Features.Orders {
     [ApiController]
@@ -37,6 +38,21 @@ namespace LaCasitaDeMiga.Features.Orders {
             await _orderService.SendOrderConfirmationEmailAsync(request);
             return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
         }
+
+        [HttpGet]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<PagedResultDto<OrderResponseDto>>> GetAll(
+                                                                                [FromQuery] EOrderStatus? status = null,
+                                                                                [FromQuery] DateTime? startDate = null,
+                                                                                [FromQuery] DateTime? endDate = null,
+                                                                                [FromQuery] int pageNumber = 1,
+                                                                                [FromQuery] int pageSize = 10) {
+
+            var result = await _orderService.GetAllAsync(status, startDate, endDate, pageNumber, pageSize);
+            return Ok(result);
+        }
+
+
 
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<OrderResponseDto>> GetById(Guid id) {

@@ -1,27 +1,33 @@
 ﻿using AutoMapper;
-using LaCasitaDeMiga.Exceptions;
-using LaCasitaDeMiga.Features.Orders.DTOs;
-using LaCasitaDeMiga.Features.Products.Services;
+using LaCasitaDeMiga.Common.DTOs;
 using LaCasitaDeMiga.Data;
-using Microsoft.EntityFrameworkCore;
-using LaCasitaDeMiga.Features.Users.services;
+using LaCasitaDeMiga.Exceptions;
+using LaCasitaDeMiga.Features.Common.Cache.services;
 using LaCasitaDeMiga.Features.Common.services.MailService;
 using LaCasitaDeMiga.Features.Common.services.MailService.Enums;
+using LaCasitaDeMiga.Features.Orders.DTOs;
+using LaCasitaDeMiga.Features.Products.DTOs;
+using LaCasitaDeMiga.Features.Products.Services;
+using LaCasitaDeMiga.Features.Users.services;
+using Microsoft.EntityFrameworkCore;
 
 namespace LaCasitaDeMiga.Features.Orders.Services {
     public class OrderServiceImpl : IOrderService {
         private readonly ApplicationDbContext _context;
+
         private readonly IProductService _productService;
         private readonly IEmailTemplateService _emailService;
-
         private readonly IMapper _mapper;
 
+     
         public OrderServiceImpl(ApplicationDbContext context, IProductService productService,
                                 IMapper mapper, IUserService userService, IEmailTemplateService emailService) {
             _context = context;
             _productService = productService;
             _mapper = mapper;
             _emailService = emailService;
+
+
         }
 
 
@@ -153,6 +159,60 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
                 throw;
             }
         }
+        //---------------------------------------------------------------------------
+        public async Task<PagedResultDto<OrderResponseDto>> GetAllAsync(
+    EOrderStatus? status = null,
+    DateTime? startDate = null,
+    DateTime? endDate = null,
+    int pageNumber = 1,
+    int pageSize = 10) {
+
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize < 1) pageSize = 10;
+            if (pageSize > 50) pageSize = 50;
+
+            var query = _context.Orders
+                .Include(o => o.Items)
+                    .ThenInclude(i => i.ProductVariant)
+                        .ThenInclude(v => v.Product)
+                .AsQueryable();
+
+            if (status.HasValue) {
+                query = query.Where(o => o.Status == status.Value);
+            }
+
+            if (startDate.HasValue) {
+                query = query.Where(o => o.CreatedAt >= startDate.Value);
+            }
+
+            if (endDate.HasValue) {
+                query = query.Where(o => o.CreatedAt <= endDate.Value);
+            }
+
+            var totalItems = await query.CountAsync();
+
+            var orders = await query
+                .OrderByDescending(o => o.CreatedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync();
+
+            var mappedItems = _mapper.Map<IEnumerable<OrderResponseDto>>(orders);
+
+            return new PagedResultDto<OrderResponseDto> {
+                Items = mappedItems,
+                TotalItems = totalItems,
+                PageNumber = pageNumber,
+                PageSize = pageSize
+            };
+        }
+
+        //-----------------------------------------------------------------------------
+
+
+
+
+
 
 
 
