@@ -5,6 +5,7 @@ using LaCasitaDeMiga.Exceptions;
 using LaCasitaDeMiga.Features.Products;
 using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Features.Products.Services;
+using LaCasitaDeMiga.Features.Common.Cache.services; // <-- Agregado para ICacheService
 using Microsoft.EntityFrameworkCore;
 using Moq;
 using System;
@@ -41,7 +42,8 @@ namespace LaCasitaDeMiga.Tests.Features.Products.Services {
                 .Options;
 
             using var context = new ApplicationDbContext(options);
-            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object);
+            // Agregamos el Mock del ICacheService
+            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object, new Mock<ICacheService>().Object);
 
             var exception = await Assert.ThrowsAsync<BadRequestException>(() =>
                 service.RegisterStockEntryAsync(Guid.NewGuid(), invalidQuantity, 150.00m)
@@ -57,7 +59,7 @@ namespace LaCasitaDeMiga.Tests.Features.Products.Services {
                 .Options;
 
             using var context = new ApplicationDbContext(options);
-            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object);
+            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object, new Mock<ICacheService>().Object);
 
             var exception = await Assert.ThrowsAsync<BadRequestException>(() =>
                 service.RegisterStockEntryAsync(Guid.NewGuid(), 10, -10.50m)
@@ -73,7 +75,7 @@ namespace LaCasitaDeMiga.Tests.Features.Products.Services {
                 .Options;
 
             using var context = new ApplicationDbContext(options);
-            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object);
+            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object, new Mock<ICacheService>().Object);
             var randomId = Guid.NewGuid();
 
             var exception = await Assert.ThrowsAsync<NotFoundException>(() =>
@@ -101,7 +103,7 @@ namespace LaCasitaDeMiga.Tests.Features.Products.Services {
             });
             await context.SaveChangesAsync();
 
-            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object);
+            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object, new Mock<ICacheService>().Object);
 
             // ACT -> Entran 5 unidades nuevas a un precio de compra de $200.00 cada una
             // Fórmula Esperada: ((10 * 100) + (5 * 200)) / (10 + 5) = (1000 + 1000) / 15 = 2000 / 15 = 133.3333... -> Redondeado a 133.33
@@ -137,7 +139,7 @@ namespace LaCasitaDeMiga.Tests.Features.Products.Services {
             });
             await context.SaveChangesAsync();
 
-            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object);
+            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object, new Mock<ICacheService>().Object);
 
             // ACT -> Intentamos restar 5 unidades (lo que dejaría el stock en -2)
             var exception = await Assert.ThrowsAsync<BadRequestException>(() =>
@@ -159,7 +161,7 @@ namespace LaCasitaDeMiga.Tests.Features.Products.Services {
             context.ProductVariants.Add(new ProductVariantEntity { Id = variantId, Sku = "DONA-GLA", Stock = 20, Version = 1 });
             await context.SaveChangesAsync();
 
-            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object);
+            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object, new Mock<ICacheService>().Object);
 
             // Restamos 5 unidades de forma válida
             var result = await service.UpdateStockAsync(variantId, -5);
@@ -181,8 +183,8 @@ namespace LaCasitaDeMiga.Tests.Features.Products.Services {
                 .Options;
 
             using var context = new ApplicationDbContext(options);
-            // El mapeador real es necesario para procesar el mapeo de listas del GetAll
-            var service = new ProductServiceImpl(context, CreateRealMapper());
+            // El mapeador real es necesario para procesar el mapeo de listas del GetAll, y sumamos el caché
+            var service = new ProductServiceImpl(context, CreateRealMapper(), new Mock<ICacheService>().Object);
 
             // Pasamos parámetros locos: página 0 y tamaño de página de 200
             var result = await service.GetAllAsync(pageNumber: 0, pageSize: 200);
@@ -202,7 +204,7 @@ namespace LaCasitaDeMiga.Tests.Features.Products.Services {
                 .Options;
 
             using var context = new ApplicationDbContext(options);
-            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object);
+            var service = new ProductServiceImpl(context, new Mock<IMapper>().Object, new Mock<ICacheService>().Object);
 
             var exception = await Assert.ThrowsAsync<NotFoundException>(() =>
                 service.GetByIdAsync(Guid.NewGuid())
