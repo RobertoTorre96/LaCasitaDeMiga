@@ -5,7 +5,7 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
     public interface IOrderService {
         Task<OrderResponseDto> CreateOrderAsync(OrderRequestDto request);
         Task<OrderResponseDto> CreateOrderAsync(ComboEspecialDTO request);
-        Task<OrderResponseDto> CreateOrderWithoutStockAsync(OrderRequestDto request)
+        Task<OrderResponseDto> CreateOrderWithoutStockAsync(OrderRequestDto request);
 
         Task<OrderResponseDto> GetByIdAsync(Guid id);
 
