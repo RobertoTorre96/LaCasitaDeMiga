@@ -19,6 +19,7 @@ using Microsoft.OpenApi.Models;
 using Serilog;
 using StackExchange.Redis;
 using System.Text;
+using System.Text.Json.Serialization;
 
 // --- CONFIGURACIÓN INICIAL DE SERILOG (antes de crear el builder) ---
 Log.Logger = new LoggerConfiguration()
@@ -84,7 +85,11 @@ try {
 
     // --- INFRAESTRUCTURA Y SERVICIOS DEL CONTENEDOR ---
     builder.Services.AddAutoMapper(typeof(Program));
-    builder.Services.AddControllers();
+    builder.Services.AddControllers()
+        .AddJsonOptions(options =>
+        {
+            options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
+        }); 
     builder.Services.AddEndpointsApiExplorer();
 
     // Swagger con soporte de JWT
