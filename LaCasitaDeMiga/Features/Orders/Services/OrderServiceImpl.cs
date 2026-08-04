@@ -187,11 +187,17 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
             if (status.HasValue) {
                 query = query.Where(o => o.Status == status.Value);
             }
+            // Si usas startDate
             if (startDate.HasValue) {
-                query = query.Where(o => o.CreatedAt >= startDate.Value);
+                // Convertimos la fecha "Unspecified" a "UTC"
+                var startUtc = DateTime.SpecifyKind(startDate.Value, DateTimeKind.Utc);
+                query = query.Where(o => o.CreatedAt >= startUtc);
             }
+
+            // Si usas endDate
             if (endDate.HasValue) {
-                query = query.Where(o => o.CreatedAt <= endDate.Value);
+                var endUtc = DateTime.SpecifyKind(endDate.Value, DateTimeKind.Utc);
+                query = query.Where(o => o.CreatedAt <= endUtc);
             }
 
             var totalItems = await query.CountAsync();
