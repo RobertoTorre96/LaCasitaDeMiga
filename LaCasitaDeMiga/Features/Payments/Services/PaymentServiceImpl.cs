@@ -39,7 +39,7 @@ namespace LaCasitaDeMiga.Features.Payments.Services {
             if (order == null)
                 throw new NotFoundException($"La orden con ID {orderId} no existe.");
 
-            var frontendUrl = _config["MercadoPago:PublicBaseUrl"];
+            var frontendUrl = _config["MercadoPago:frontendUrl"];
             var baseUrl = _config["MercadoPago:PublicBaseUrl"];
 
             var items = order.Items.Select(i => new PreferenceItemRequest {

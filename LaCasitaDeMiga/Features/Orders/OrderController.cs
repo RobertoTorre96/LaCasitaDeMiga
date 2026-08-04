@@ -35,9 +35,24 @@ namespace LaCasitaDeMiga.Features.Orders {
             }
 
             var response = await _orderService.CreateOrderAsync(request);
-            await _orderService.SendOrderConfirmationEmailAsync(request);
+         //   await _orderService.SendOrderConfirmationEmailAsync(request);
             return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
         }
+
+
+        [HttpPost("without-stock")]
+        public async Task<ActionResult<OrderResponseDto>> CreateOrderWithoutStockAsync([FromBody] OrderRequestDto request) {
+            if (!IsOwnerOrAdmin(request.CustomerId)) {
+                return Forbid();
+            }
+
+            var response = await _orderService.CreateOrderWithoutStockAsync (request);
+            //   await _orderService.SendOrderConfirmationEmailAsync(request);
+            return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
+        }
+
+
+
 
         [HttpGet]
         [Authorize(Roles = "Admin")]

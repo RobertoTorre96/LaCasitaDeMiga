@@ -164,6 +164,69 @@ namespace LaCasitaDeMiga.Features.Orders.Services {
             }
         }
         //---------------------------------------------------------------------------
+        // VERSIÓN SIN CONTROL NI DESCUENTO DE STOCK
+        public async Task<OrderResponseDto> CreateOrderWithoutStockAsync(OrderRequestDto request) {
+            using var transaction = await _context.Database.BeginTransactionAsync();
+
+            try {
+                var order = new OrderEntity {
+                    CustomerId = request.CustomerId,
+                    Status = EOrderStatus.Pending,
+                    TotalAmount = 0
+                };
+
+                decimal totalAccumulated = 0;
+
+                foreach (var itemDto in request.Items) {
+                    if (itemDto.Quantity <= 0) {
+                        throw new BadRequestException($"Cantidad inválida ({itemDto.Quantity}) para la variante {itemDto.ProductVariantId}. Debe ser mayor a 0.");
+                    }
+
+                    var variant = await _context.ProductVariants
+                        .Include(v => v.Product)
+                        .FirstOrDefaultAsync(v => v.Id == itemDto.ProductVariantId);
+
+                    if (variant == null) {
+                        throw new NotFoundException($"La variante de producto con ID {itemDto.ProductVariantId} no existe.");
+                    }
+
+                    // ❌ ELIMINAMOS EL CONTROL Y DESCUENTO DE STOCK AQUÍ ❌
+                    // Ya no llamamos a _productService.UpdateStockAsync
+
+                    var orderItem = new OrderItemEntity {
+                        ProductVariantId = variant.Id,
+                        Quantity = itemDto.Quantity,
+                        UnitPrice = variant.Price,
+                        UnitCost = variant.AverageCost
+                    };
+                    totalAccumulated += orderItem.Quantity * orderItem.UnitPrice;
+                    order.Items.Add(orderItem);
+                }
+
+                order.TotalAmount = totalAccumulated;
+
+                _context.Orders.Add(order);
+                await _context.SaveChangesAsync();
+                await transaction.CommitAsync();
+
+                var fullOrder = await _context.Orders
+                    .Include(o => o.Customer)
+                    .Include(o => o.Items)
+                        .ThenInclude(i => i.ProductVariant)
+                            .ThenInclude(v => v.Product)
+                    .FirstAsync(o => o.Id == order.Id);
+
+                return _mapper.Map<OrderResponseDto>(fullOrder);
+            } catch (Exception) {
+                await transaction.RollbackAsync();
+                throw;
+            }
+        }
+
+
+
+
+
         public async Task<PagedResultDto<OrderResponseDto>> GetAllAsync(
     EOrderStatus? status = null,
     DateTime? startDate = null,
