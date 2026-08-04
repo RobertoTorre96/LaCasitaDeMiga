@@ -51,9 +51,9 @@ namespace LaCasitaDeMiga.Features.Payments.Services {
             var request = new PreferenceRequest {
                 Items = items,
                 BackUrls = new PreferenceBackUrlsRequest {
-                    Success = $"{baseUrl}/api/payment/success",
-                    Failure = $"{baseUrl}/api/payment/failure",
-                    Pending = $"{baseUrl}/api/payment/pending"
+                    Success = $"{baseUrl}/payment/result/?status=approved",
+                    Failure = $"{baseUrl}/payment/result/?status=failure",
+                    Pending = $"{baseUrl}/payment/result/?status=pending"
                 },
                 AutoReturn = "approved",
                 NotificationUrl = $"{baseUrl}/api/payment/webhook",
