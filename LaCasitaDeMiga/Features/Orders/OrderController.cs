@@ -24,7 +24,7 @@ namespace LaCasitaDeMiga.Features.Orders {
             }
 
             var response = await _orderService.CreateOrderAsync(request);
-            await _orderService.SendOrderConfirmationEmailAsync(response);
+          // await _orderService.SendOrderConfirmationEmailAsync(response);
             return CreatedAtAction(nameof(GetById), new { id = response.Id }, response);
         }
 

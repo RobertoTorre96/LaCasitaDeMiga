@@ -109,9 +109,14 @@ namespace LaCasitaDeMiga.Features.Payments.Services {
                 _ => null
             };
 
+           
+
             if (newStatus.HasValue) {
                 await _orderService.UpdateStatusAsync(orderId, newStatus.Value);
                 _logger.LogWarning("Order {OrderId} actualizada a {NewStatus}", orderId, newStatus.Value);
+            }
+            if (newStatus == EOrderStatus.Paid) {
+                await _orderService.SendOrderConfirmationEmailAsync(await _orderService.GetByIdAsync(orderId));
             }
         }
 
