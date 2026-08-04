@@ -39,6 +39,7 @@ namespace LaCasitaDeMiga.Features.Payments.Services {
             if (order == null)
                 throw new NotFoundException($"La orden con ID {orderId} no existe.");
 
+            var frontendUrl = _config["MercadoPago:PublicBaseUrl"];
             var baseUrl = _config["MercadoPago:PublicBaseUrl"];
 
             var items = order.Items.Select(i => new PreferenceItemRequest {
@@ -51,9 +52,9 @@ namespace LaCasitaDeMiga.Features.Payments.Services {
             var request = new PreferenceRequest {
                 Items = items,
                 BackUrls = new PreferenceBackUrlsRequest {
-                    Success = $"{baseUrl}/payment/result/?status=approved",
-                    Failure = $"{baseUrl}/payment/result/?status=failure",
-                    Pending = $"{baseUrl}/payment/result/?status=pending"
+                    Success = $"{frontendUrl}/payment/result/?status=approved",
+                    Failure = $"{frontendUrl}/payment/result/?status=failure",
+                    Pending = $"{frontendUrl}/payment/result/?status=pending"
                 },
                 AutoReturn = "approved",
                 NotificationUrl = $"{baseUrl}/api/payment/webhook",
