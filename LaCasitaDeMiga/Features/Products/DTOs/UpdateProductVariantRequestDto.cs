@@ -10,6 +10,12 @@ namespace LaCasitaDeMiga.Features.Products.DTOs {
         [Range(0.01, double.MaxValue, ErrorMessage = "El precio debe ser mayor a 0.")]
         public decimal Price { get; set; }
 
+
+        [Required(ErrorMessage = "El precio de compra es obligatorio.")]
+        [Range(0.0, double.MaxValue, ErrorMessage = "El precio debe ser mayor igual a 0.")]
+        public decimal LastPurchasePrice { get; set; } = 0.00m;
+
+
         [Range(0.01, double.MaxValue, ErrorMessage = "El precio de oferta debe ser mayor a 0.")]
         public decimal? CompareAtPrice { get; set; }
 

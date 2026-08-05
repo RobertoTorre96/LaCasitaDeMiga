@@ -288,6 +288,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
 
             variant.Price = dto.Price;
             variant.CompareAtPrice = dto.CompareAtPrice;
+            variant.LastPurchasePrice = dto.LastPurchasePrice;
             variant.LowStockThreshold = dto.LowStockThreshold;
             variant.Attributes = dto.Attributes;
             variant.IsActive = dto.IsActive;
