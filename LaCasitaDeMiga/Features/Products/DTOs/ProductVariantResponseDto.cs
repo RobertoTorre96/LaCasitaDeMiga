@@ -6,7 +6,7 @@
         public decimal? CompareAtPrice { get; set; }
 
         // --- LOS CAMPOS FINANCIEROS NUEVOS ---
-        public decimal LastPurchasePrice { get; set; }
+        public decimal PurchasePrice { get; set; }
         public decimal AverageCost { get; set; }
         // ─────────────────────────────────────
 
