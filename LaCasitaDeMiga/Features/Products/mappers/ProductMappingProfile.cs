@@ -62,8 +62,10 @@ namespace LaCasitaDeMiga.Features.Products.mappers {
                 .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.Category))
                 .ForMember(dest => dest.Brand, opt => opt.MapFrom(src => src.Brand))
                 .ForMember(dest => dest.Variants, opt => opt.MapFrom(src => src.Variants));
+            
 
-            CreateMap<ProductVariantEntity, ProductVariantResponseDto>();
+            CreateMap<ProductVariantEntity, ProductVariantResponseDto>()
+                .ForMember(dest=>dest.PurchasePrice,opt=>opt.MapFrom(src=>src.LastPurchasePrice));
 
             CreateMap<Features.Categories.CategoryEntity, ProductRelationDto>();
             CreateMap<Features.Brands.BrandEntity, ProductRelationDto>();
