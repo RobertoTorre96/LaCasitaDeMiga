@@ -13,7 +13,7 @@ namespace LaCasitaDeMiga.Features.Products.DTOs {
 
         [Required(ErrorMessage = "El precio de compra es obligatorio.")]
         [Range(0.0, double.MaxValue, ErrorMessage = "El precio debe ser mayor igual a 0.")]
-        public decimal LastPurchasePrice { get; set; } = 0.00m;
+        public decimal PurchasePrice { get; set; } = 0.00m;
 
 
         [Range(0.01, double.MaxValue, ErrorMessage = "El precio de oferta debe ser mayor a 0.")]
