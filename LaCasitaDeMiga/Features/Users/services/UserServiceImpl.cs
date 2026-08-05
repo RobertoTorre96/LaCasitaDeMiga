@@ -136,6 +136,7 @@ namespace LaCasitaDeMiga.Features.Users.services {
             var totalItems = await query.CountAsync();
           
             var users = await query
+                .AsNoTracking()
                 .OrderByDescending(p => p.CreatedAt)
                 .Skip((pageNumber - 1) * pageSize)
                 .Take(pageSize)

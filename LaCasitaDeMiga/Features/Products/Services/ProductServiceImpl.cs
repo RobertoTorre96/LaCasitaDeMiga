@@ -131,7 +131,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             var cached = await _cache.GetAsync<PagedResultDto<ProductResponseDto>>(cacheKey);
             if (cached != null) return cached;
 
-            var query = _context.Products
+            var query = _context.Products.AsNoTracking()
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
                 .Include(p => p.Variants)
@@ -171,6 +171,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             if (cached != null) return cached;
 
             var product = await _context.Products
+                .AsNoTracking()
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
                 .Include(p => p.Variants)
@@ -195,6 +196,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             if (cached != null) return cached;
 
             var product = await _context.Products
+                .AsNoTracking()
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
                 .Include(p => p.Variants)
