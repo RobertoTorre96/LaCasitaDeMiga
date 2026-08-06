@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace LaCasitaDeMiga.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260806002206_AddVariantImagesTable")]
-    partial class AddVariantImagesTable
+    [Migration("20260806021327_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
