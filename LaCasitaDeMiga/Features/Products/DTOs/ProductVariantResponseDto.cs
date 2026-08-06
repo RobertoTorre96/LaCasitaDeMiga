@@ -22,5 +22,6 @@
 
         // La propiedad calculada para las alertas automáticas de stock bajo
         public bool IsLowStock => Stock <= LowStockThreshold;
+        public List<VariantImageDto> Images { get; set; } = new List<VariantImageDto>();
     }
 }

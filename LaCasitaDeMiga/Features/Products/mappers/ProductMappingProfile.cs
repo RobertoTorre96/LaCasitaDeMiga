@@ -69,6 +69,9 @@ namespace LaCasitaDeMiga.Features.Products.mappers {
 
             CreateMap<Features.Categories.CategoryEntity, ProductRelationDto>();
             CreateMap<Features.Brands.BrandEntity, ProductRelationDto>();
+
+
+            CreateMap<VariantImageEntity, VariantImageDto>();
         }
     }
 }

@@ -1,4 +1,5 @@
 ﻿using LaCasitaDeMiga.Common.DTOs;
+using LaCasitaDeMiga.Features.Common.Image.services;
 using LaCasitaDeMiga.Features.Products.DTOs;
 using LaCasitaDeMiga.Features.Products.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -10,9 +11,11 @@ namespace LaCasitaDeMiga.Features.Products {
     public class ProductController : ControllerBase {
 
         private readonly IProductService _productService;
+        private readonly IImageService _imageService; // ✅ NUEVO
 
-        public ProductController(IProductService productService) {
-            this._productService = productService;
+        public ProductController(IProductService productService, IImageService imageService) {
+            _productService = productService;
+            _imageService = imageService; // ✅ NUEVO
         }
 
         // 1. OBTENER TODO (Paginado y Filtrado)
@@ -121,5 +124,36 @@ namespace LaCasitaDeMiga.Features.Products {
             var updatedVariant = await _productService.UpdateVariantAsync(variantId, dto);
             return Ok(updatedVariant);
         }
+
+        [HttpPost("variants/{variantId:guid}/images")]
+        [Authorize(Roles = "Admin")]
+        public async Task<IActionResult> UploadVariantImage(Guid variantId, IFormFile file) {
+
+            // 1. Validaciones de seguridad
+            if (file == null || file.Length == 0) {
+                return BadRequest(new { message = "Debe enviar un archivo válido." });
+            }
+
+            // Límite de 5 MB
+            if (file.Length > 5 * 1024 * 1024) {
+                return BadRequest(new { message = "El archivo no puede superar los 5MB." });
+            }
+
+            // Tipos permitidos
+            var allowedExtensions = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (!allowedExtensions.Contains(extension)) {
+                return BadRequest(new { message = "Formato de imagen no permitido. Use JPG, PNG o WEBP." });
+            }
+
+            // 2. Subir a Cloudinary (nuestro nuevo servicio hace la magia)
+            var (url, publicId) = await _imageService.UploadAsync(file, "productos_variantes");
+
+            // 3. Guardar en PostgreSQL
+            var imageDto = await _productService.AddImageToVariantAsync(variantId, url, publicId);
+
+            return Ok(imageDto);
+        }
+
     }
 }

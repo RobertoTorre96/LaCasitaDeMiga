@@ -18,6 +18,7 @@ namespace LaCasitaDeMiga.Data {
         public DbSet<OrderEntity> Orders { get; set; } = null!;
         public DbSet<OrderItemEntity> OrderItems { get; set; } = null!;
         public DbSet<UserEntity> Users { get; set; }
+        public DbSet<VariantImageEntity> VariantImages{ get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder) {
             base.OnModelCreating(modelBuilder);

@@ -4,6 +4,8 @@
         public Guid ProductId { get; set; }
         public string Sku { get; set; } = null!;
 
+        public ICollection<VariantImageEntity> Images { get; set; } = new List<VariantImageEntity>();
+
         // 1. Precio de Venta (Público)
         public decimal Price { get; set; }
         public decimal? CompareAtPrice { get; set; } // Opcional (null), para precios de oferta

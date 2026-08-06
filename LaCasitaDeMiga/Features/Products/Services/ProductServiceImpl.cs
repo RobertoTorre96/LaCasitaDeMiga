@@ -135,6 +135,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
                 .Include(p => p.Variants)
+                    .ThenInclude(v => v.Images) // 👈 ¡AGREGAR ESTA LÍNEA AQUÍ!
                 .AsQueryable();
 
             if (onlyActive) query = query.Where(p => p.IsActive);
@@ -175,6 +176,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
                 .Include(p => p.Variants)
+                    .ThenInclude(v => v.Images) // 👈 ¡AGREGAR ESTA LÍNEA AQUÍ!
                 .FirstOrDefaultAsync(p => p.Id == id);
 
             if (product == null) throw new NotFoundException("Producto no encontrado");
@@ -200,6 +202,7 @@ namespace LaCasitaDeMiga.Features.Products.Services {
                 .Include(p => p.Category)
                 .Include(p => p.Brand)
                 .Include(p => p.Variants)
+                    .ThenInclude(v => v.Images) // 👈 ¡AGREGAR ESTA LÍNEA AQUÍ!
                 .FirstOrDefaultAsync(p => p.Slug == slug);
 
             if (product == null) throw new NotFoundException("Producto no encontrado");
@@ -410,6 +413,39 @@ namespace LaCasitaDeMiga.Features.Products.Services {
             str = Regex.Replace(str, @"\s+", " ").Trim();
             str = Regex.Replace(str, @"\s", "-");
             return str;
+        }
+
+
+        // 11. AGREGAR IMAGEN A VARIANTE
+        public async Task<VariantImageDto> AddImageToVariantAsync(Guid variantId, string imageUrl, string publicId) {
+            // Buscamos la variante y su producto padre para poder invalidar la caché
+            var variant = await _context.ProductVariants
+                .Include(v => v.Product)
+                .FirstOrDefaultAsync(v => v.Id == variantId);
+
+            if (variant == null) {
+                throw new NotFoundException($"La variante con ID '{variantId}' no fue encontrada.");
+            }
+
+            var imageEntity = new VariantImageEntity {
+                ProductVariantId = variantId,
+                ImageUrl = imageUrl,
+                PublicId = publicId
+            };
+
+            // Agregamos la imagen directamente al contexto
+            _context.Set<VariantImageEntity>().Add(imageEntity);
+
+            // Subimos la versión de la variante por concurrencia
+            variant.Version++;
+
+            await _context.SaveChangesAsync();
+
+            // Limpiamos la caché
+            await InvalidateProductCacheAsync(variant.ProductId, variant.Product.Slug);
+            await InvalidateListCacheAsync();
+
+            return _mapper.Map<VariantImageDto>(imageEntity);
         }
 
         // --- HELPERS DE INVALIDACIÓN DE CACHÉ ---

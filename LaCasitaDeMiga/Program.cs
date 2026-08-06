@@ -3,6 +3,7 @@ using LaCasitaDeMiga.Exceptions;
 using LaCasitaDeMiga.Features.Brands.Services;
 using LaCasitaDeMiga.Features.Categories.Services;
 using LaCasitaDeMiga.Features.Common.Cache.services;
+using LaCasitaDeMiga.Features.Common.Image.services;
 using LaCasitaDeMiga.Features.Common.services.MailService;
 using LaCasitaDeMiga.Features.DashBoard.Services;
 using LaCasitaDeMiga.Features.Delivery.services;
@@ -131,6 +132,7 @@ try {
     builder.Services.AddScoped<IEmailTemplateService, EmailTemplateServiceImpl>();
     builder.Services.AddScoped<IPaymentService, PaymentServiceImpl>();
     builder.Services.AddSingleton<ICacheService, RedisCacheService>();
+    builder.Services.AddScoped<IImageService, ImageServiceImpl>(); // ✅ AGREGAR ESTA LÍNEA
 
     // --- CONFIGURACIÓN DE REDIS (CACHÉ) ---
     var redisConnectionString = builder.Configuration["Redis:ConnectionString"]
